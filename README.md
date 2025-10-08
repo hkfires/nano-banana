@@ -77,11 +77,17 @@ npm run preview
 2. 在项目设置中启用 GitHub Pages
 3. 使用 GitHub Actions 自动构建和部署
 
+### 部署到 Cloudflare Pages
+
+1. Fork 本项目到您的 GitHub
+2. 在 [Cloudflare Pages](https://http://www.cloudflare.com/) 中连接 GitHub 仓库
+3. 构建命令: `npm run build`
+4. 发布目录: `dist`
+
 ### 其他静态托管服务
 
 本项目构建后生成纯静态文件，可以部署到任何静态托管服务：
 
--   Cloudflare Pages
 -   Firebase Hosting
 -   AWS S3 + CloudFront
 -   等等
