@@ -9,15 +9,6 @@
                         <p class="text-gray-300 text-sm">AI驱动的图像风格转换工具，让你的创意无限可能</p>
                     </div>
 
-                    <!-- 链接区域 -->
-                    <div class="flex flex-wrap justify-center gap-4 mb-4 text-sm">
-                        <a href="https://eat.lz-t.top/" target="_blank" class="text-yellow-300 hover:text-yellow-100 transition-colors flex items-center gap-1"> 一饭封神 </a>
-                        <span class="text-gray-500">|</span>
-                        <a href="https://xhs.lz-t.top/" target="_blank" class="text-yellow-300 hover:text-yellow-100 transition-colors"> 小红书解析 </a>
-                        <span class="text-gray-500">|</span>
-                        <a href="https://prompt.lz-t.top/" class="text-yellow-300 hover:text-yellow-100 transition-colors"> 图片转提示词 </a>
-                    </div>
-
                     <!-- 版权信息 -->
                     <div class="border-t border-gray-600 pt-4">
                         <p class="text-gray-400 text-xs">© 2025 Nano Banana. Made with 🍌 and ❤️</p>

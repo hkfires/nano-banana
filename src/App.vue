@@ -136,6 +136,8 @@ onMounted(() => {
 
     const savedModelId = LocalStorage.getModelId()
     selectedModel.value = savedModelId.trim() || DEFAULT_MODEL_ID
+
+    restoreModelOptionsFromCache(apiEndpoint.value)
 })
 
 // 监听API密钥变化，自动保存到本地存储
@@ -148,6 +150,7 @@ watch(
         } else {
             LocalStorage.clearApiKey()
             if ((previousApiKey || '').trim()) {
+                LocalStorage.clearModelCache()
                 modelOptions.value = []
                 selectedModel.value = ''
                 modelsError.value = null
@@ -175,8 +178,11 @@ watch(
             modelsError.value = null
             if (previousTrimmed) {
                 selectedModel.value = ''
+                LocalStorage.clearModelCache(previousTrimmed)
             }
             showApiSettings.value = true
+        } else if (trimmed) {
+            restoreModelOptionsFromCache(trimmed)
         }
     },
     { immediate: false }
@@ -190,6 +196,7 @@ watch(
             LocalStorage.saveModelId(trimmed)
         } else {
             LocalStorage.clearModelId()
+            LocalStorage.clearModelCache(apiEndpoint.value)
             showApiSettings.value = true
         }
     },
@@ -220,6 +227,7 @@ const handleFetchModels = async () => {
         }
 
         modelOptions.value = options
+        LocalStorage.saveModelCache(apiEndpoint.value, options)
 
         const preferred =
             options.find(option => option.id === selectedModel.value) ||
@@ -228,6 +236,7 @@ const handleFetchModels = async () => {
             options[0]
 
         selectedModel.value = preferred.id
+        ensureSelectedOptionPresent()
     } catch (fetchError) {
         modelsError.value = fetchError instanceof Error ? fetchError.message : '无法获取模型列表'
         modelOptions.value = []
@@ -303,6 +312,48 @@ const handleModelPicked = () => {
             showApiSettings.value = false
         }
     }, 600)
+}
+
+const restoreModelOptionsFromCache = (endpoint: string) => {
+    const trimmedEndpoint = endpoint.trim()
+    if (!trimmedEndpoint) return
+
+    const cached = LocalStorage.getModelCache(trimmedEndpoint)
+    if (!cached.length) return
+
+    modelOptions.value = cached
+    ensureSelectedOptionPresent()
+}
+
+const ensureSelectedOptionPresent = () => {
+    const currentId = selectedModel.value.trim()
+    if (!currentId) return
+
+    const exists = modelOptions.value.some(option => option.id === currentId)
+    if (!exists) {
+        modelOptions.value = [
+            ...modelOptions.value,
+            {
+                id: currentId,
+                label: buildFallbackLabel(currentId),
+                description: '',
+                supportsImages: true
+            }
+        ]
+    }
+
+    modelOptions.value = modelOptions.value.sort((a, b) => {
+        if (a.supportsImages !== b.supportsImages) {
+            return a.supportsImages ? -1 : 1
+        }
+        return a.label.localeCompare(b.label)
+    })
+}
+
+const buildFallbackLabel = (modelId: string): string => {
+    const segments = modelId.split('/')
+    const lastSegment = segments[segments.length - 1]
+    return lastSegment || modelId
 }
 
 const canGenerate = computed(
