@@ -107,7 +107,7 @@ import type { ApiModel, GenerateRequest, ModelOption } from './types'
 import { DEFAULT_API_ENDPOINT, DEFAULT_MODEL_ID } from './config/api'
 
 const apiKey = ref('')
-const apiEndpoint = ref(DEFAULT_API_ENDPOINT)
+const apiEndpoint = ref('')  // 改为空字符串，避免初始化时触发 watch
 const selectedImages = ref<string[]>([])
 const selectedStyle = ref('')
 const customPrompt = ref('')
@@ -116,14 +116,17 @@ const result = ref<string | null>(null)
 const error = ref<string | null>(null)
 const showApiSettings = ref(false)
 const modelOptions = ref<ModelOption[]>([])
-const selectedModel = ref(DEFAULT_MODEL_ID)
+const selectedModel = ref('')  // 改为空字符串，避免初始化时使用默认值
 const isFetchingModels = ref(false)
 const modelsError = ref<string | null>(null)
+let hasSyncedInitialEndpoint = false
 
 // 组件挂载时从本地存储读取API密钥
 onMounted(() => {
     const savedApiKey = LocalStorage.getApiKey()
     const savedEndpoint = LocalStorage.getApiEndpoint()
+    const savedModelId = LocalStorage.getModelId()
+
     if (savedApiKey) {
         apiKey.value = savedApiKey
         showApiSettings.value = false
@@ -132,13 +135,21 @@ onMounted(() => {
         showApiSettings.value = true
     }
 
-    apiEndpoint.value = savedEndpoint.trim() || DEFAULT_API_ENDPOINT
+    // 先设置端点，再恢复模型缓存，最后设置模型ID
+    const endpointToUse = savedEndpoint.trim() || DEFAULT_API_ENDPOINT
+    const modelIdToUse = savedModelId.trim() || DEFAULT_MODEL_ID
 
-    const savedModelId = LocalStorage.getModelId()
-    selectedModel.value = savedModelId.trim() || DEFAULT_MODEL_ID
+    // 恢复模型缓存
+    restoreModelOptionsFromCache(endpointToUse)
 
-    restoreModelOptionsFromCache(apiEndpoint.value)
+    // 设置值（这些赋值会触发 watch，但此时 hasSyncedInitialEndpoint 还是 false）
+    selectedModel.value = modelIdToUse
+    apiEndpoint.value = endpointToUse
+
     ensureSelectedOptionPresent()
+
+    // 最后才标记初始化完成，这样后续的 watch 触发才会被当作用户操作
+    hasSyncedInitialEndpoint = true
 })
 
 // 监听API密钥变化，自动保存到本地存储
@@ -174,12 +185,12 @@ watch(
             LocalStorage.clearApiEndpoint()
         }
 
-        if (previousEndpoint === undefined) {
-            restoreModelOptionsFromCache(trimmed)
-            ensureSelectedOptionPresent()
+        // 如果是初始化阶段（在 onMounted 中），直接返回，不做任何处理
+        if (!hasSyncedInitialEndpoint) {
             return
         }
 
+        // 只有在初始化完成后，用户主动修改端点时才重置模型
         if (trimmed !== previousTrimmed) {
             modelOptions.value = []
             modelsError.value = null
@@ -188,9 +199,6 @@ watch(
                 LocalStorage.clearModelCache(previousTrimmed)
             }
             showApiSettings.value = true
-        } else if (trimmed) {
-            restoreModelOptionsFromCache(trimmed)
-            ensureSelectedOptionPresent()
         }
     },
     { immediate: false }
@@ -205,10 +213,16 @@ watch(
         } else {
             LocalStorage.clearModelId()
             LocalStorage.clearModelCache(apiEndpoint.value)
-            selectedModel.value = DEFAULT_MODEL_ID
-            showApiSettings.value = true
+            // 避免在初始化时重置
+            if (hasSyncedInitialEndpoint) {
+                selectedModel.value = DEFAULT_MODEL_ID
+                showApiSettings.value = true
+            }
         }
-        ensureSelectedOptionPresent()
+        // 只在初始化完成后才调用 ensureSelectedOptionPresent
+        if (hasSyncedInitialEndpoint) {
+            ensureSelectedOptionPresent()
+        }
     },
     { immediate: false }
 )
