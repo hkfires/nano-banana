@@ -60,16 +60,14 @@
         </div>
 
         <!-- 自定义提示词 -->
-        <div v-else class="space-y-4 flex-1 flex flex-col">
-            <div class="mb-4">
-                <p class="font-bold mb-2 flex items-center gap-2">🍌 描述你的创意想法：</p>
-            </div>
+        <div v-else class="flex flex-col gap-3 flex-1">
+            <label class="font-bold flex items-center gap-2">🍌 描述你的创意想法：</label>
 
             <textarea
                 :value="customPrompt"
                 @input="updateCustomPrompt(($event.target as HTMLTextAreaElement).value)"
                 placeholder="例如：将图片转换为超现实主义风格，加入漂浮的香蕉和鲜艳的色彩..."
-                class="w-full px-4 py-3 border-2 border-black rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent flex-1 min-h-[200px]"
+                class="w-full px-4 py-3 border-2 border-black rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent flex-1 min-h-[160px]"
             />
 
             <p class="text-sm text-gray-600 font-medium flex items-center gap-1">💡 描述越具体，效果越好！</p>

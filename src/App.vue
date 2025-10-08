@@ -54,41 +54,100 @@
                 </div>
             </div>
 
-            <!-- 主要内容区域：左右布局 -->
-            <div class="grid lg:grid-cols-2 gap-4 lg:gap-6 mb-6 lg:items-stretch min-h-[400px]">
-                <!-- 左侧：上传图片 -->
+            <!-- 功能布局 -->
+            <div class="grid lg:grid-cols-2 gap-4 lg:gap-6 mb-6 lg:items-start">
+                <!-- 灵感工坊 -->
                 <div class="flex flex-col h-full">
-                    <div class="bg-pink-400 text-white font-bold px-4 py-2 rounded-t-lg border-4 border-black border-b-0 flex items-center gap-2">🍌 1. 上传图片</div>
-                    <div class="flex-1">
-                        <ImageUpload v-model="selectedImages" />
+                    <div class="bg-gradient-to-r from-blue-400 to-purple-500 text-white font-bold px-4 py-2 rounded-t-lg border-4 border-black border-b-0 flex items-center gap-2">
+                        ✨ 文生图 · 灵感工坊
+                    </div>
+                    <div class="bg-white border-4 border-black border-t-0 rounded-b-lg p-5 shadow-lg flex flex-col h-full gap-4">
+                        <div class="flex flex-col gap-3 flex-1">
+                            <label class="font-bold flex items-center gap-2 text-base">🍌 输入你的创意描述：</label>
+                            <textarea
+                                v-model="textToImagePrompt"
+                                placeholder="例如：阳光洒在香蕉形热气球上，漂浮在糖果色的天空中"
+                                class="w-full px-4 py-3 border-2 border-black rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent min-h-[160px] flex-1"
+                            />
+                        </div>
+
+                        <p class="text-sm text-gray-600 font-medium flex items-center gap-2">
+                            <span>💡</span>
+                            <span>填写描述后，使用下方按钮开始创作，生成的图片会展示在下方结果区，可直接下载或继续改图。</span>
+                        </p>
                     </div>
                 </div>
 
-                <!-- 右侧：选择风格或自定义提示词 -->
-                <div class="flex flex-col h-full">
-                    <div class="bg-gradient-to-r from-green-400 to-blue-500 text-white font-bold px-4 py-2 rounded-t-lg border-4 border-black border-b-0 flex items-center gap-2">
-                        🎨 2. 选择风格或自定义提示词
+                <!-- 图文生图流程 -->
+                <div class="flex flex-col gap-4 h-full">
+                    <div class="flex flex-col h-full">
+                        <div class="bg-pink-400 text-white font-bold px-4 py-2 rounded-t-lg border-4 border-black border-b-0 flex items-center gap-2">🍌 图文生图 · 上传图片</div>
+                        <div class="flex-1">
+                            <ImageUpload v-model="selectedImages" />
+                        </div>
                     </div>
-                    <div class="flex-1">
-                        <StylePromptSelector v-model:selectedStyle="selectedStyle" v-model:customPrompt="customPrompt" :templates="styleTemplates" />
+
+                    <div class="flex flex-col h-full">
+                        <div class="bg-gradient-to-r from-green-400 to-blue-500 text-white font-bold px-4 py-2 rounded-t-lg border-4 border-black border-b-0 flex items-center gap-2">
+                            🎨 图文生图 · 选择风格或自定义提示词
+                        </div>
+                        <div class="flex-1">
+                            <StylePromptSelector v-model:selectedStyle="selectedStyle" v-model:customPrompt="customPrompt" :templates="styleTemplates" />
+                        </div>
                     </div>
                 </div>
             </div>
 
             <!-- 生成按钮 -->
             <div class="mb-6">
-                <GenerateButton :loading="isLoading" :disabled="!canGenerate" @click="handleGenerate" />
+                <div class="flex flex-col gap-4 lg:flex-row lg:gap-6">
+                    <button
+                        @click="handleTextToImageGenerate"
+                        :disabled="!canGenerateTextImage"
+                        :class="[
+                            'flex-1 px-6 py-4 rounded-lg font-bold text-white text-lg transition-all duration-200 flex items-center justify-center gap-3 border-4 border-black shadow-lg',
+                            canGenerateTextImage
+                                ? 'bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 hover:-translate-y-1 hover:shadow-xl'
+                                : 'bg-gray-400 cursor-not-allowed'
+                        ]"
+                    >
+                        <span v-if="!isTextToImageLoading" class="flex items-center gap-2 text-xl">🍌 施展魔法（文生图）</span>
+                        <span v-else class="flex items-center gap-2 text-xl">🍌 正在施法...</span>
+                        <div v-if="isTextToImageLoading" class="w-8 h-8 border-3 border-white/30 border-t-white rounded-full animate-spin" />
+                    </button>
+                    <button
+                        @click="handleGenerate"
+                        :disabled="!canGenerate"
+                        :class="[
+                            'flex-1 px-6 py-4 rounded-lg font-bold text-white text-lg transition-all duration-200 flex items-center justify-center gap-3 border-4 border-black shadow-lg',
+                            canGenerate
+                                ? 'bg-gradient-to-r from-orange-400 to-yellow-500 hover:from-orange-500 hover:to-yellow-600 hover:-translate-y-1 hover:shadow-xl'
+                                : 'bg-gray-400 cursor-not-allowed'
+                        ]"
+                    >
+                        <span v-if="!isLoading" class="flex items-center gap-2 text-xl">🍌 施展魔法（图文生图）</span>
+                        <span v-else class="flex items-center gap-2 text-xl">🍌 正在施法...</span>
+                        <div v-if="isLoading" class="w-8 h-8 border-3 border-white/30 border-t-white rounded-full animate-spin" />
+                    </button>
+                </div>
             </div>
 
             <!-- 生成结果区域：全宽 -->
             <div class="w-full">
-                <div class="bg-black text-white font-bold px-4 py-2 rounded-t-lg border-4 border-black border-b-0 flex items-center gap-2">✨ 3. 生成结果</div>
-                <ResultDisplay :result="result" :loading="isLoading" :error="error" />
+                <div class="bg-black text-white font-bold px-4 py-2 rounded-t-lg border-4 border-black border-b-0 flex items-center gap-2">✨ 生成结果</div>
+                <ResultDisplay
+                    :result="displayResult"
+                    :loading="displayLoading"
+                    :error="displayError"
+                    :can-push="canPushDisplayResult"
+                    @download="handleDownloadResult"
+                    @push="handlePushDisplayResult"
+                />
             </div>
-        </div>
 
-        <!-- Footer -->
-        <Footer />
+            <!-- Footer -->
+            <Footer />
+        </div>
     </div>
 </template>
 
@@ -97,7 +156,6 @@ import { ref, computed, onMounted, watch } from 'vue'
 import ApiKeyInput from './components/ApiKeyInput.vue'
 import ImageUpload from './components/ImageUpload.vue'
 import StylePromptSelector from './components/StylePromptSelector.vue'
-import GenerateButton from './components/GenerateButton.vue'
 import ResultDisplay from './components/ResultDisplay.vue'
 import Footer from './components/Footer.vue'
 import { fetchModels, generateImage } from './services/api'
@@ -114,6 +172,11 @@ const customPrompt = ref('')
 const isLoading = ref(false)
 const result = ref<string | null>(null)
 const error = ref<string | null>(null)
+const textToImagePrompt = ref('')
+const textToImageResult = ref<string | null>(null)
+const textToImageError = ref<string | null>(null)
+const isTextToImageLoading = ref(false)
+const latestResultSource = ref<'text' | 'image' | null>(null)
 const showApiSettings = ref(false)
 const modelOptions = ref<ModelOption[]>([])
 const selectedModel = ref('')  // 改为空字符串，避免初始化时使用默认值
@@ -235,6 +298,16 @@ watch([selectedStyle, customPrompt], () => {
         error.value = null
     }
 })
+
+watch(
+    textToImagePrompt,
+    () => {
+        if (textToImageError.value) {
+            textToImageError.value = null
+        }
+    },
+    { immediate: false }
+)
 
 const handleFetchModels = async () => {
     if (!apiKey.value.trim() || !apiEndpoint.value.trim()) return
@@ -380,6 +453,41 @@ const buildFallbackLabel = (modelId: string): string => {
     return lastSegment || modelId
 }
 
+const pushImageToUpload = (image: string | null) => {
+    if (!image) return
+    const filtered = selectedImages.value.filter(existing => existing !== image)
+    selectedImages.value = [image, ...filtered]
+}
+
+const displayLoading = computed(() => {
+    if (latestResultSource.value === 'image') return isLoading.value
+    if (latestResultSource.value === 'text') return isTextToImageLoading.value
+    return isLoading.value || isTextToImageLoading.value
+})
+
+const displayResult = computed(() => {
+    if (latestResultSource.value === 'image') return result.value
+    if (latestResultSource.value === 'text') return textToImageResult.value
+    return result.value || textToImageResult.value
+})
+
+const displayError = computed(() => {
+    if (latestResultSource.value === 'image') return error.value
+    if (latestResultSource.value === 'text') return textToImageError.value
+    return error.value || textToImageError.value
+})
+
+const canPushDisplayResult = computed(() => Boolean(displayResult.value))
+
+const canGenerateTextImage = computed(
+    () =>
+        apiKey.value.trim() &&
+        apiEndpoint.value.trim() &&
+        selectedModel.value.trim() &&
+        textToImagePrompt.value.trim() &&
+        !isTextToImageLoading.value
+)
+
 const canGenerate = computed(
     () =>
         apiKey.value.trim() &&
@@ -390,9 +498,81 @@ const canGenerate = computed(
         !isLoading.value
 )
 
+const handleTextToImageGenerate = async () => {
+    if (!canGenerateTextImage.value) return
+
+    latestResultSource.value = 'text'
+    isTextToImageLoading.value = true
+    textToImageError.value = null
+    textToImageResult.value = null
+
+    try {
+        const request: GenerateRequest = {
+            prompt: textToImagePrompt.value,
+            images: [],
+            apikey: apiKey.value,
+            endpoint: apiEndpoint.value.trim() || DEFAULT_API_ENDPOINT,
+            model: selectedModel.value.trim() || DEFAULT_MODEL_ID
+        }
+
+        const response = await generateImage(request)
+        textToImageResult.value = response.imageUrl
+        latestResultSource.value = 'text'
+    } catch (err) {
+        textToImageError.value = err instanceof Error ? err.message : '生成失败'
+        textToImageResult.value = null
+    } finally {
+        isTextToImageLoading.value = false
+    }
+}
+
+const handlePushTextImageToUpload = () => {
+    pushImageToUpload(textToImageResult.value)
+}
+
+const handlePushDisplayResult = () => {
+    pushImageToUpload(displayResult.value)
+}
+
+const handleDownloadResult = async () => {
+    const image = displayResult.value
+    if (!image) return
+    if (typeof window === 'undefined') return
+
+    let downloadUrl = image
+    let revokeUrl: string | null = null
+
+    try {
+        if (!image.startsWith('data:')) {
+            const response = await fetch(image)
+            const blob = await response.blob()
+            downloadUrl = URL.createObjectURL(blob)
+            revokeUrl = downloadUrl
+        }
+
+        const link = document.createElement('a')
+        const dataMatch = image.match(/^data:image\/([a-zA-Z0-9+]+);/)
+        const extension = dataMatch ? dataMatch[1] : 'png'
+
+        link.href = downloadUrl
+        link.download = `nano-banana-${Date.now()}.${extension}`
+        link.rel = 'noopener'
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+
+        if (revokeUrl) {
+            URL.revokeObjectURL(revokeUrl)
+        }
+    } catch (downloadError) {
+        window.open(image, '_blank', 'noopener')
+    }
+}
+
 const handleGenerate = async () => {
     if (!canGenerate.value) return
 
+    latestResultSource.value = 'image'
     isLoading.value = true
     error.value = null
     // 立即清除之前的结果，确保用户看到新的生成过程
@@ -412,6 +592,7 @@ const handleGenerate = async () => {
 
         const response = await generateImage(request)
         result.value = response.imageUrl
+        latestResultSource.value = 'image'
     } catch (err) {
         error.value = err instanceof Error ? err.message : '生成失败'
         // 生成失败时也要清除结果

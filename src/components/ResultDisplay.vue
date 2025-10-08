@@ -16,8 +16,23 @@
             </div>
 
             <!-- Result Image -->
-            <div v-else-if="result" class="w-full h-full flex items-center justify-center">
+            <div v-else-if="result" class="w-full h-full flex items-center justify-center relative">
                 <img :src="result" alt="生成的艺术作品" class="max-w-full max-h-[600px] rounded-lg border-2 border-black shadow-lg object-contain" />
+                <div class="absolute bottom-4 right-4 flex flex-col gap-2 items-stretch">
+                    <button
+                        v-if="canPush"
+                        @click="$emit('push')"
+                        class="px-4 py-2 bg-green-300 text-black font-bold border-2 border-black rounded-lg shadow-lg hover:bg-green-400 transition-all flex items-center justify-center gap-2"
+                    >
+                        🎨 二次创作
+                    </button>
+                    <button
+                        @click="$emit('download')"
+                        class="px-4 py-2 bg-yellow-300 text-black font-bold border-2 border-black rounded-lg shadow-lg hover:bg-yellow-400 transition-all flex items-center justify-center gap-2"
+                    >
+                        ⬇️ 下载图片
+                    </button>
+                </div>
             </div>
 
             <!-- Empty State -->
@@ -37,5 +52,11 @@ defineProps<{
     result: string | null
     loading: boolean
     error: string | null
+    canPush: boolean
+}>()
+
+defineEmits<{
+    download: []
+    push: []
 }>()
 </script>
