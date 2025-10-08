@@ -41,7 +41,15 @@
 
                 <!-- API设置折叠面板 -->
                 <div v-if="showApiSettings" class="mt-4 max-w-2xl mx-auto">
-                    <ApiKeyInput v-model="apiKey" />
+                    <ApiKeyInput
+                        v-model="apiKey"
+                        v-model:endpoint="apiEndpoint"
+                        v-model:model="selectedModel"
+                        :models="modelOptions"
+                        :model-loading="isFetchingModels"
+                        :model-error="modelsError"
+                        @fetch-models="handleFetchModels"
+                    />
                 </div>
             </div>
 
@@ -91,12 +99,14 @@ import StylePromptSelector from './components/StylePromptSelector.vue'
 import GenerateButton from './components/GenerateButton.vue'
 import ResultDisplay from './components/ResultDisplay.vue'
 import Footer from './components/Footer.vue'
-import { generateImage } from './services/api'
+import { fetchModels, generateImage } from './services/api'
 import { styleTemplates } from './data/templates'
 import { LocalStorage } from './utils/storage'
-import type { GenerateRequest } from './types'
+import type { ApiModel, GenerateRequest, ModelOption } from './types'
+import { DEFAULT_API_ENDPOINT, DEFAULT_MODEL_ID } from './config/api'
 
 const apiKey = ref('')
+const apiEndpoint = ref(DEFAULT_API_ENDPOINT)
 const selectedImages = ref<string[]>([])
 const selectedStyle = ref('')
 const customPrompt = ref('')
@@ -104,10 +114,15 @@ const isLoading = ref(false)
 const result = ref<string | null>(null)
 const error = ref<string | null>(null)
 const showApiSettings = ref(false)
+const modelOptions = ref<ModelOption[]>([])
+const selectedModel = ref(DEFAULT_MODEL_ID)
+const isFetchingModels = ref(false)
+const modelsError = ref<string | null>(null)
 
 // 组件挂载时从本地存储读取API密钥
 onMounted(() => {
     const savedApiKey = LocalStorage.getApiKey()
+    const savedEndpoint = LocalStorage.getApiEndpoint()
     if (savedApiKey) {
         apiKey.value = savedApiKey
         showApiSettings.value = false
@@ -115,6 +130,11 @@ onMounted(() => {
         // 如果没有API密钥，自动展开设置面板
         showApiSettings.value = true
     }
+
+    apiEndpoint.value = savedEndpoint.trim() || DEFAULT_API_ENDPOINT
+
+    const savedModelId = LocalStorage.getModelId()
+    selectedModel.value = savedModelId.trim() || DEFAULT_MODEL_ID
 })
 
 // 监听API密钥变化，自动保存到本地存储
@@ -132,6 +152,42 @@ watch(
     { immediate: false }
 )
 
+watch(
+    apiEndpoint,
+    (newEndpoint: string, previousEndpoint?: string) => {
+        const trimmed = newEndpoint.trim()
+        const previousTrimmed = (previousEndpoint || '').trim()
+
+        if (trimmed) {
+            LocalStorage.saveApiEndpoint(trimmed)
+        } else {
+            LocalStorage.clearApiEndpoint()
+        }
+
+        if (trimmed !== previousTrimmed) {
+            modelOptions.value = []
+            modelsError.value = null
+            if (previousTrimmed) {
+                selectedModel.value = ''
+            }
+        }
+    },
+    { immediate: false }
+)
+
+watch(
+    selectedModel,
+    (newModel: string) => {
+        const trimmed = newModel.trim()
+        if (trimmed) {
+            LocalStorage.saveModelId(trimmed)
+        } else {
+            LocalStorage.clearModelId()
+        }
+    },
+    { immediate: false }
+)
+
 // 监听风格和提示词变化，清除之前的生成结果
 watch([selectedStyle, customPrompt], () => {
     // 当用户改变风格或提示词时，清除之前的结果和错误
@@ -141,7 +197,103 @@ watch([selectedStyle, customPrompt], () => {
     }
 })
 
-const canGenerate = computed(() => apiKey.value.trim() && selectedImages.value.length > 0 && (selectedStyle.value || customPrompt.value.trim()) && !isLoading.value)
+const handleFetchModels = async () => {
+    if (!apiKey.value.trim() || !apiEndpoint.value.trim()) return
+
+    isFetchingModels.value = true
+    modelsError.value = null
+
+    try {
+        const rawModels = await fetchModels(apiKey.value, apiEndpoint.value)
+        const options = mapModelsToOptions(rawModels)
+
+        if (!options.length) {
+            throw new Error('未找到可用模型')
+        }
+
+        modelOptions.value = options
+
+        const preferred =
+            options.find(option => option.id === selectedModel.value) ||
+            options.find(option => option.id === DEFAULT_MODEL_ID) ||
+            options.find(option => option.supportsImages) ||
+            options[0]
+
+        selectedModel.value = preferred.id
+    } catch (fetchError) {
+        modelsError.value = fetchError instanceof Error ? fetchError.message : '无法获取模型列表'
+        modelOptions.value = []
+        selectedModel.value = ''
+    } finally {
+        isFetchingModels.value = false
+    }
+}
+
+const mapModelsToOptions = (models: ApiModel[]): ModelOption[] => {
+    const uniqueIds = new Set<string>()
+    const options: ModelOption[] = []
+
+    models.forEach(model => {
+        if (!model?.id || uniqueIds.has(model.id)) return
+        uniqueIds.add(model.id)
+
+        const supportsImages = detectImageSupport(model)
+        const label = buildModelLabel(model)
+        const description = (typeof model.description === 'string' && model.description.trim()) ||
+            (typeof (model as Record<string, unknown>).about === 'string' && String((model as Record<string, unknown>).about).trim()) ||
+            ''
+
+        options.push({
+            id: model.id,
+            label,
+            description,
+            supportsImages
+        })
+    })
+
+    return options.sort((a, b) => {
+        if (a.supportsImages !== b.supportsImages) {
+            return a.supportsImages ? -1 : 1
+        }
+        return a.label.localeCompare(b.label)
+    })
+}
+
+const detectImageSupport = (model: ApiModel): boolean => {
+    const caps = model.capabilities
+    if (caps && typeof caps === 'object') {
+        if ((caps as Record<string, unknown>).image === true) return true
+        if ((caps as Record<string, unknown>).images === true) return true
+        if ((caps as Record<string, unknown>).vision === true) return true
+        if ((caps as Record<string, unknown>).multimodal === true) return true
+    }
+
+    const tags = (model as Record<string, unknown>).tags
+    if (Array.isArray(tags) && tags.some(tag => typeof tag === 'string' && /image|vision|photo|picture|art|draw/i.test(tag))) {
+        return true
+    }
+
+    return /image|vision|flux|art|picture|photo|illustration/i.test(model.id)
+}
+
+const buildModelLabel = (model: ApiModel): string => {
+    if (model.name && typeof model.name === 'string' && model.name.trim()) {
+        return model.name.trim()
+    }
+    const segments = model.id.split('/')
+    const lastSegment = segments[segments.length - 1]
+    return lastSegment || model.id
+}
+
+const canGenerate = computed(
+    () =>
+        apiKey.value.trim() &&
+        apiEndpoint.value.trim() &&
+        selectedModel.value.trim() &&
+        selectedImages.value.length > 0 &&
+        (selectedStyle.value || customPrompt.value.trim()) &&
+        !isLoading.value
+)
 
 const handleGenerate = async () => {
     if (!canGenerate.value) return
@@ -158,7 +310,9 @@ const handleGenerate = async () => {
         const request: GenerateRequest = {
             prompt,
             images: selectedImages.value,
-            apikey: apiKey.value
+            apikey: apiKey.value,
+            endpoint: apiEndpoint.value.trim() || DEFAULT_API_ENDPOINT,
+            model: selectedModel.value.trim() || DEFAULT_MODEL_ID
         }
 
         const response = await generateImage(request)

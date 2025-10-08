@@ -1,9 +1,8 @@
-import type { GenerateRequest, GenerateResponse } from '../types'
-
-const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions'
+import type { ApiModel, GenerateRequest, GenerateResponse, ModelListResponse } from '../types'
+import { DEFAULT_API_ENDPOINT, DEFAULT_MODEL_ID } from '../config/api'
 
 export async function generateImage(request: GenerateRequest): Promise<GenerateResponse> {
-    // 构建OpenRouter API请求格式
+    // 构建通用聊天补全请求格式
     const messages = [
         {
             role: 'user',
@@ -17,29 +16,31 @@ export async function generateImage(request: GenerateRequest): Promise<GenerateR
         }
     ]
 
-    const openrouterPayload = {
-        model: 'google/gemini-2.5-flash-image-preview:free',
+    const payload = {
+        model: request.model || DEFAULT_MODEL_ID,
         messages
     }
 
-    const response = await fetch(OPENROUTER_API_URL, {
+    const apiEndpoint = request.endpoint?.trim() || DEFAULT_API_ENDPOINT
+
+    const response = await fetch(apiEndpoint, {
         method: 'POST',
         headers: {
             Authorization: `Bearer ${request.apikey}`,
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify(openrouterPayload)
+        body: JSON.stringify(payload)
     })
 
     if (!response.ok) {
         const errorText = await response.text()
-        throw new Error(`OpenRouter API error: ${response.status} - ${errorText}`)
+        throw new Error(`API error ${response.status}: ${errorText}`)
     }
 
     const data = await response.json()
 
     if (!data.choices?.[0]?.message) {
-        throw new Error('Invalid response from OpenRouter API')
+        throw new Error('Invalid response from API')
     }
 
     const message = data.choices[0].message
@@ -60,4 +61,67 @@ export async function generateImage(request: GenerateRequest): Promise<GenerateR
     }
 
     throw new Error('Model did not return a valid image')
+}
+
+export async function fetchModels(apikey: string, endpoint: string): Promise<ApiModel[]> {
+    const apiEndpoint = endpoint?.trim() || DEFAULT_API_ENDPOINT
+    const modelsUrl = resolveModelsEndpoint(apiEndpoint)
+
+    const response = await fetch(modelsUrl, {
+        method: 'GET',
+        headers: {
+            Authorization: `Bearer ${apikey}`,
+            'Content-Type': 'application/json'
+        }
+    })
+
+    if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`获取模型列表失败 ${response.status}: ${errorText}`)
+    }
+
+    const data: ModelListResponse = await response.json()
+    const models = Array.isArray(data.data) ? data.data : Array.isArray(data.models) ? data.models : []
+
+    if (!models.length) {
+        throw new Error('模型列表为空')
+    }
+
+    return models
+}
+
+function resolveModelsEndpoint(endpoint: string): string {
+    try {
+        const url = new URL(endpoint)
+        const segments = url.pathname.split('/').filter(Boolean)
+
+        if (segments.length === 0) {
+            url.pathname = '/models'
+            return url.toString()
+        }
+
+        const lastSegment = segments[segments.length - 1]
+
+        if (lastSegment === 'models') {
+            return url.toString()
+        }
+
+        if (lastSegment === 'completions' || lastSegment === 'complete' || lastSegment === 'generate') {
+            segments.pop()
+            const secondLast = segments[segments.length - 1]
+            if (secondLast === 'chat') {
+                segments[segments.length - 1] = 'models'
+            } else {
+                segments.push('models')
+            }
+        } else {
+            segments.push('models')
+        }
+
+        url.pathname = '/' + segments.join('/')
+        return url.toString()
+    } catch (error) {
+        console.warn('无法解析模型列表端点，将使用默认规则:', error)
+        return endpoint.replace(/\/$/, '') + '/models'
+    }
 }
