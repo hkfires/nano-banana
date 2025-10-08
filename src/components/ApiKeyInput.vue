@@ -79,16 +79,15 @@
                 </div>
                 <p v-if="modelError" class="text-xs text-red-600 mt-2">⚠️ {{ modelError }}</p>
 
-                <div v-if="models.length" class="mt-3">
+                <div class="mt-3">
                     <label class="block text-xs font-semibold text-gray-600 mb-1">选择文生图模型</label>
                     <select
                         :value="model"
                         @change="handleModelChange"
                         class="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
                     >
-                        <option disabled value="">请选择模型</option>
-                        <option v-for="model in models" :key="model.id" :value="model.id">
-                            {{ model.supportsImages ? '🖼️ ' : '' }}{{ model.label }}
+                        <option v-for="item in optionList" :key="item.id" :value="item.id">
+                            {{ item.supportsImages ? '🖼️ ' : '' }}{{ item.label }}
                         </option>
                     </select>
                     <p v-if="selectedModelInfo" class="text-xs text-gray-500 mt-1">{{ selectedModelInfo }}</p>
@@ -100,7 +99,7 @@
 
 <script setup lang="ts">
 import { computed, toRefs } from 'vue'
-import { DEFAULT_API_ENDPOINT } from '../config/api'
+import { DEFAULT_API_ENDPOINT, DEFAULT_MODEL_ID } from '../config/api'
 import { LocalStorage } from '../utils/storage'
 import type { ModelOption } from '../types'
 
@@ -137,8 +136,25 @@ const resetEndpoint = () => {
 
 const isCustomEndpoint = computed(() => endpoint.value !== '' && endpoint.value !== DEFAULT_API_ENDPOINT)
 const canFetchModels = computed(() => modelValue.value.trim() !== '' && endpoint.value.trim() !== '')
+const optionList = computed<ModelOption[]>(() => {
+    if (models.value.length) {
+        return models.value
+    }
+
+    const fallbackId = model.value || DEFAULT_MODEL_ID
+
+    return [
+        {
+            id: fallbackId,
+            label: buildFallbackLabel(fallbackId),
+            description: '',
+            supportsImages: true
+        }
+    ]
+})
+
 const selectedModelInfo = computed(() => {
-    const current = models.value.find(option => option.id === model.value)
+    const current = optionList.value.find(option => option.id === model.value)
     if (!current) return ''
     if (current.description) {
         return current.description
@@ -150,5 +166,11 @@ const handleModelChange = (event: Event) => {
     const value = (event.target as HTMLSelectElement).value
     emit('update:model', value)
     emit('model-picked')
+}
+
+function buildFallbackLabel(modelId: string): string {
+    const segments = modelId.split('/')
+    const lastSegment = segments[segments.length - 1]
+    return lastSegment || modelId
 }
 </script>

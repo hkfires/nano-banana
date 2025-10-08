@@ -138,6 +138,7 @@ onMounted(() => {
     selectedModel.value = savedModelId.trim() || DEFAULT_MODEL_ID
 
     restoreModelOptionsFromCache(apiEndpoint.value)
+    ensureSelectedOptionPresent()
 })
 
 // 监听API密钥变化，自动保存到本地存储
@@ -152,7 +153,7 @@ watch(
             if ((previousApiKey || '').trim()) {
                 LocalStorage.clearModelCache()
                 modelOptions.value = []
-                selectedModel.value = ''
+                selectedModel.value = DEFAULT_MODEL_ID
                 modelsError.value = null
             }
             showApiSettings.value = true
@@ -173,16 +174,23 @@ watch(
             LocalStorage.clearApiEndpoint()
         }
 
+        if (previousEndpoint === undefined) {
+            restoreModelOptionsFromCache(trimmed)
+            ensureSelectedOptionPresent()
+            return
+        }
+
         if (trimmed !== previousTrimmed) {
             modelOptions.value = []
             modelsError.value = null
             if (previousTrimmed) {
-                selectedModel.value = ''
+                selectedModel.value = DEFAULT_MODEL_ID
                 LocalStorage.clearModelCache(previousTrimmed)
             }
             showApiSettings.value = true
         } else if (trimmed) {
             restoreModelOptionsFromCache(trimmed)
+            ensureSelectedOptionPresent()
         }
     },
     { immediate: false }
@@ -197,8 +205,10 @@ watch(
         } else {
             LocalStorage.clearModelId()
             LocalStorage.clearModelCache(apiEndpoint.value)
+            selectedModel.value = DEFAULT_MODEL_ID
             showApiSettings.value = true
         }
+        ensureSelectedOptionPresent()
     },
     { immediate: false }
 )
@@ -240,7 +250,7 @@ const handleFetchModels = async () => {
     } catch (fetchError) {
         modelsError.value = fetchError instanceof Error ? fetchError.message : '无法获取模型列表'
         modelOptions.value = []
-        selectedModel.value = ''
+        selectedModel.value = DEFAULT_MODEL_ID
     } finally {
         isFetchingModels.value = false
     }
