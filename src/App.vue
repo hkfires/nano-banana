@@ -49,6 +49,7 @@
                         :model-loading="isFetchingModels"
                         :model-error="modelsError"
                         @fetch-models="handleFetchModels"
+                        @model-picked="handleModelPicked"
                     />
                 </div>
             </div>
@@ -140,13 +141,18 @@ onMounted(() => {
 // 监听API密钥变化，自动保存到本地存储
 watch(
     apiKey,
-    (newApiKey: string) => {
-        if (newApiKey.trim()) {
-            LocalStorage.saveApiKey(newApiKey)
-            // 当API密钥配置成功后，延迟关闭设置面板
-            setTimeout(() => {
-                showApiSettings.value = false
-            }, 1500)
+    (newApiKey: string, previousApiKey?: string) => {
+        const trimmed = newApiKey.trim()
+        if (trimmed) {
+            LocalStorage.saveApiKey(trimmed)
+        } else {
+            LocalStorage.clearApiKey()
+            if ((previousApiKey || '').trim()) {
+                modelOptions.value = []
+                selectedModel.value = ''
+                modelsError.value = null
+            }
+            showApiSettings.value = true
         }
     },
     { immediate: false }
@@ -170,6 +176,7 @@ watch(
             if (previousTrimmed) {
                 selectedModel.value = ''
             }
+            showApiSettings.value = true
         }
     },
     { immediate: false }
@@ -183,6 +190,7 @@ watch(
             LocalStorage.saveModelId(trimmed)
         } else {
             LocalStorage.clearModelId()
+            showApiSettings.value = true
         }
     },
     { immediate: false }
@@ -283,6 +291,18 @@ const buildModelLabel = (model: ApiModel): string => {
     const segments = model.id.split('/')
     const lastSegment = segments[segments.length - 1]
     return lastSegment || model.id
+}
+
+const handleModelPicked = () => {
+    if (!selectedModel.value.trim()) return
+    modelsError.value = null
+    if (!showApiSettings.value) return
+
+    setTimeout(() => {
+        if (selectedModel.value.trim()) {
+            showApiSettings.value = false
+        }
+    }, 600)
 }
 
 const canGenerate = computed(

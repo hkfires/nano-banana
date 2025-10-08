@@ -82,8 +82,8 @@
                 <div v-if="models.length" class="mt-3">
                     <label class="block text-xs font-semibold text-gray-600 mb-1">选择文生图模型</label>
                     <select
-                        :value="selectedModel"
-                        @change="$emit('update:model', ($event.target as HTMLSelectElement).value)"
+                        :value="model"
+                        @change="handleModelChange"
                         class="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
                     >
                         <option disabled value="">请选择模型</option>
@@ -108,7 +108,7 @@ const props = defineProps<{
     modelValue: string
     endpoint: string
     models: ModelOption[]
-    selectedModel: string
+    model: string
     modelLoading: boolean
     modelError: string | null
 }>()
@@ -118,9 +118,10 @@ const emit = defineEmits<{
     'update:endpoint': [value: string]
     'update:model': [value: string]
     'fetch-models': []
+    'model-picked': []
 }>()
 
-const { modelValue, endpoint, models, selectedModel } = toRefs(props)
+const { modelValue, endpoint, models, model } = toRefs(props)
 
 const clearApiKey = () => {
     LocalStorage.clearApiKey()
@@ -137,11 +138,17 @@ const resetEndpoint = () => {
 const isCustomEndpoint = computed(() => endpoint.value !== '' && endpoint.value !== DEFAULT_API_ENDPOINT)
 const canFetchModels = computed(() => modelValue.value.trim() !== '' && endpoint.value.trim() !== '')
 const selectedModelInfo = computed(() => {
-    const current = models.value.find(model => model.id === selectedModel.value)
+    const current = models.value.find(option => option.id === model.value)
     if (!current) return ''
     if (current.description) {
         return current.description
     }
     return current.supportsImages ? '支持生成图片' : ''
 })
+
+const handleModelChange = (event: Event) => {
+    const value = (event.target as HTMLSelectElement).value
+    emit('update:model', value)
+    emit('model-picked')
+}
 </script>
