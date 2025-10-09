@@ -16,9 +16,18 @@ export async function generateImage(request: GenerateRequest): Promise<GenerateR
         }
     ]
 
-    const payload = {
+    const payload: Record<string, unknown> = {
         model: request.model || DEFAULT_MODEL_ID,
         messages
+    }
+
+    // 如果提供了 aspectRatio 参数（用于 Gemini 模型），添加 generationConfig
+    if (request.aspectRatio) {
+        payload.generationConfig = {
+            imageConfig: {
+                aspectRatio: request.aspectRatio
+            }
+        }
     }
 
     const apiEndpoint = request.endpoint?.trim() || DEFAULT_API_ENDPOINT

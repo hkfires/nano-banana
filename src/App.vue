@@ -57,24 +57,34 @@
             <!-- 功能布局 -->
             <div class="grid lg:grid-cols-2 gap-4 lg:gap-6 mb-6 lg:items-start">
                 <!-- 灵感工坊 -->
-                <div class="flex flex-col h-full">
-                    <div class="bg-gradient-to-r from-blue-400 to-purple-500 text-white font-bold px-4 py-2 rounded-t-lg border-4 border-black border-b-0 flex items-center gap-2">
-                        ✨ 文生图 · 灵感工坊
-                    </div>
-                    <div class="bg-white border-4 border-black border-t-0 rounded-b-lg p-5 shadow-lg flex flex-col h-full gap-4">
-                        <div class="flex flex-col gap-3 flex-1">
-                            <label class="font-bold flex items-center gap-2 text-base">🍌 输入你的创意描述：</label>
-                            <textarea
-                                v-model="textToImagePrompt"
-                                placeholder="例如：阳光洒在香蕉形热气球上，漂浮在糖果色的天空中"
-                                class="w-full px-4 py-3 border-2 border-black rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent min-h-[160px] flex-1"
-                            />
+                <div class="flex flex-col h-full gap-4">
+                    <div class="flex flex-col h-full">
+                        <div class="bg-gradient-to-r from-blue-400 to-purple-500 text-white font-bold px-4 py-2 rounded-t-lg border-4 border-black border-b-0 flex items-center gap-2">
+                            ✨ 文生图 · 灵感工坊
                         </div>
+                        <div class="bg-white border-4 border-black border-t-0 rounded-b-lg p-5 shadow-lg flex flex-col h-full gap-4">
+                            <div class="flex flex-col gap-3 flex-1">
+                                <label class="font-bold flex items-center gap-2 text-base">🍌 输入你的创意描述：</label>
+                                <textarea
+                                    v-model="textToImagePrompt"
+                                    placeholder="例如：阳光洒在香蕉形热气球上，漂浮在糖果色的天空中"
+                                    class="w-full px-4 py-3 border-2 border-black rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent min-h-[160px] flex-1"
+                                />
+                            </div>
 
-                        <p class="text-sm text-gray-600 font-medium flex items-center gap-2">
-                            <span>💡</span>
-                            <span>填写描述后，使用下方按钮开始创作，生成的图片会展示在下方结果区，可直接下载或继续改图。</span>
-                        </p>
+                            <p class="text-sm text-gray-600 font-medium flex items-center gap-2">
+                                <span>💡</span>
+                                <span>填写描述后，使用下方按钮开始创作，生成的图片会展示在下方结果区，可直接下载或继续改图。</span>
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- 宽高比选择器（仅当选择 Gemini 2.5 Flash Image 模型时显示） -->
+                    <div v-if="showAspectRatioSelector" class="flex flex-col">
+                        <div class="bg-gradient-to-r from-purple-400 to-pink-500 text-white font-bold px-4 py-2 rounded-t-lg border-4 border-black border-b-0 flex items-center gap-2">
+                            📐 图像宽高比
+                        </div>
+                        <AspectRatioSelector v-model="selectedAspectRatio" />
                     </div>
                 </div>
 
@@ -158,6 +168,7 @@ import ImageUpload from './components/ImageUpload.vue'
 import StylePromptSelector from './components/StylePromptSelector.vue'
 import ResultDisplay from './components/ResultDisplay.vue'
 import Footer from './components/Footer.vue'
+import AspectRatioSelector from './components/AspectRatioSelector.vue'
 import { fetchModels, generateImage } from './services/api'
 import { styleTemplates } from './data/templates'
 import { LocalStorage } from './utils/storage'
@@ -182,6 +193,7 @@ const modelOptions = ref<ModelOption[]>([])
 const selectedModel = ref('')  // 改为空字符串，避免初始化时使用默认值
 const isFetchingModels = ref(false)
 const modelsError = ref<string | null>(null)
+const selectedAspectRatio = ref('1:1')  // 默认宽高比为 1:1
 let hasSyncedInitialEndpoint = false
 
 // 组件挂载时从本地存储读取API密钥
@@ -498,6 +510,13 @@ const canGenerate = computed(
         !isLoading.value
 )
 
+// 判断是否显示宽高比选择器（仅当模型精确为 gemini-2.5-flash-image 时显示）
+const showAspectRatioSelector = computed(() => {
+    const modelId = selectedModel.value.toLowerCase()
+    // 精确匹配 gemini-2.5-flash-image（考虑可能的前缀如 google/）
+    return modelId === 'gemini-2.5-flash-image' || modelId.endsWith('/gemini-2.5-flash-image')
+})
+
 const handleTextToImageGenerate = async () => {
     if (!canGenerateTextImage.value) return
 
@@ -513,6 +532,11 @@ const handleTextToImageGenerate = async () => {
             apikey: apiKey.value,
             endpoint: apiEndpoint.value.trim() || DEFAULT_API_ENDPOINT,
             model: selectedModel.value.trim() || DEFAULT_MODEL_ID
+        }
+
+        // 如果显示宽高比选择器（Gemini 模型），则添加 aspectRatio 参数
+        if (showAspectRatioSelector.value) {
+            request.aspectRatio = selectedAspectRatio.value
         }
 
         const response = await generateImage(request)
@@ -588,6 +612,11 @@ const handleGenerate = async () => {
             apikey: apiKey.value,
             endpoint: apiEndpoint.value.trim() || DEFAULT_API_ENDPOINT,
             model: selectedModel.value.trim() || DEFAULT_MODEL_ID
+        }
+
+        // 如果显示宽高比选择器（Gemini 模型），则添加 aspectRatio 参数
+        if (showAspectRatioSelector.value) {
+            request.aspectRatio = selectedAspectRatio.value
         }
 
         const response = await generateImage(request)

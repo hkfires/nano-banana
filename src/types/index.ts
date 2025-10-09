@@ -4,6 +4,7 @@ export interface GenerateRequest {
     apikey: string
     endpoint: string
     model: string
+    aspectRatio?: string
 }
 
 export interface GenerateResponse {
