@@ -302,14 +302,14 @@ watch(
     { immediate: false }
 )
 
-// 监听风格和提示词变化，清除之前的生成结果
-watch([selectedStyle, customPrompt], () => {
-    // 当用户改变风格或提示词时，清除之前的结果和错误
-    if (result.value || error.value) {
-        result.value = null
-        error.value = null
-    }
-})
+// 注释掉：监听风格和提示词变化时清除结果的逻辑
+// 改进：保留已生成的图片，让用户可以参考上次结果来调整参数
+// watch([selectedStyle, customPrompt], () => {
+//     if (result.value || error.value) {
+//         result.value = null
+//         error.value = null
+//     }
+// })
 
 watch(
     textToImagePrompt,
