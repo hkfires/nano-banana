@@ -12,7 +12,9 @@
                 {{ option.label }}
             </option>
         </select>
-        <p class="text-xs text-gray-500 mt-2">选择图像生成的宽高比和分辨率</p>
+        <p class="text-xs text-gray-500 mt-2">
+            💡 该设置同时作用于「文生图」与「图文生图」功能
+        </p>
     </div>
 </template>
 
