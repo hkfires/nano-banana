@@ -2,31 +2,34 @@ import type { ApiModel, GenerateRequest, GenerateResponse, ModelListResponse } f
 import { DEFAULT_API_ENDPOINT, DEFAULT_MODEL_ID } from '../config/api'
 
 export async function generateImage(request: GenerateRequest): Promise<GenerateResponse> {
-    // 构建通用聊天补全请求格式
+    // 构建消息内容：如果没有图片，使用简单字符串；有图片则使用数组格式
+    const messageContent = request.images.length === 0
+        ? request.prompt
+        : [
+            { type: 'text', text: request.prompt },
+            ...request.images.map(img => ({
+                type: 'image_url',
+                image_url: { url: img }
+            }))
+        ]
+
     const messages = [
         {
             role: 'user',
-            content: [
-                { type: 'text', text: request.prompt },
-                ...request.images.map(img => ({
-                    type: 'image_url',
-                    image_url: { url: img }
-                }))
-            ]
+            content: messageContent
         }
     ]
 
     const payload: Record<string, unknown> = {
         model: request.model || DEFAULT_MODEL_ID,
-        messages
+        messages,
+        modalities: ['image', 'text']
     }
 
-    // 如果提供了 aspectRatio 参数（用于 Gemini 模型），添加 generationConfig
+    // 如果提供了 aspectRatio 参数，添加 image_config
     if (request.aspectRatio) {
-        payload.generationConfig = {
-            imageConfig: {
-                aspectRatio: request.aspectRatio
-            }
+        payload.image_config = {
+            aspect_ratio: request.aspectRatio
         }
     }
 
