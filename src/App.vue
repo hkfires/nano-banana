@@ -79,7 +79,7 @@
                         </div>
                     </div>
 
-                    <!-- 宽高比选择器（仅当选择 Gemini 2.5 Flash Image 模型时显示） -->
+                    <!-- 宽高比选择器（仅当选择 Gemini 2.5 Flash Image 系列模型时显示） -->
                     <div v-if="showAspectRatioSelector" class="flex flex-col">
                         <div class="bg-gradient-to-r from-purple-400 to-pink-500 text-white font-bold px-4 py-2 rounded-t-lg border-4 border-black border-b-0 flex items-center gap-2">
                             📐 图像宽高比
@@ -510,11 +510,14 @@ const canGenerate = computed(
         !isLoading.value
 )
 
-// 判断是否显示宽高比选择器（仅当模型精确为 gemini-2.5-flash-image 时显示）
+// 判断是否显示宽高比选择器（仅当模型为 Gemini 2.5 Flash Image 系列时显示）
 const showAspectRatioSelector = computed(() => {
-    const modelId = selectedModel.value.toLowerCase()
-    // 精确匹配 gemini-2.5-flash-image（考虑可能的前缀如 google/）
-    return modelId === 'gemini-2.5-flash-image' || modelId.endsWith('/gemini-2.5-flash-image')
+    const modelId = selectedModel.value.toLowerCase().trim()
+    if (!modelId) return false
+
+    const segments = modelId.split('/')
+    const normalizedId = segments[segments.length - 1]
+    return normalizedId === 'gemini-2.5-flash-image' || normalizedId === 'gemini-2.5-flash-image-preview'
 })
 
 const handleTextToImageGenerate = async () => {
