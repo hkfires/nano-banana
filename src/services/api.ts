@@ -8,7 +8,15 @@ export async function generateImage(request: GenerateRequest, maxRetries: number
         try {
             console.log(`尝试生成图片 (第 ${attempt}/${maxRetries} 次)...`)
 
-            // 构建消息内容：如果没有图片，使用简单字符串；有图片则使用数组格式
+            const apiEndpoint = request.endpoint?.trim() || DEFAULT_API_ENDPOINT
+            const modelId = request.model?.trim() || DEFAULT_MODEL_ID
+
+            // 检查是否是 Gemini 3 Pro Image 模型
+            const isGemini3ProImage = modelId.toLowerCase().includes('gemini-3-pro-image')
+
+            let payload: Record<string, unknown>
+
+            // 所有模型都使用标准 OpenAI 格式，但 Gemini 模型在 image_config 中添加额外参数
             const messageContent = request.images.length === 0
                 ? request.prompt
                 : [
@@ -26,20 +34,33 @@ export async function generateImage(request: GenerateRequest, maxRetries: number
                 }
             ]
 
-            const payload: Record<string, unknown> = {
-                model: request.model || DEFAULT_MODEL_ID,
+            payload = {
+                model: modelId,
                 messages,
                 modalities: ['image', 'text']
             }
 
-            // 如果提供了 aspectRatio 参数，添加 image_config
+            // 构建 image_config
+            const imageConfig: any = {}
+
             if (request.aspectRatio) {
-                payload.image_config = {
-                    aspect_ratio: request.aspectRatio
+                imageConfig.aspect_ratio = request.aspectRatio
+            }
+
+            // 如果是 Gemini 3 Pro Image 模型，添加额外参数
+            if (isGemini3ProImage) {
+                if (request.imageSize) {
+                    imageConfig.image_size = request.imageSize
+                }
+                if (request.enableGoogleSearch) {
+                    payload.tools = [{ google_search: {} }]
                 }
             }
 
-            const apiEndpoint = request.endpoint?.trim() || DEFAULT_API_ENDPOINT
+            // 如果有 image_config 参数，添加到 payload
+            if (Object.keys(imageConfig).length > 0) {
+                payload.image_config = imageConfig
+            }
 
             const response = await fetch(apiEndpoint, {
                 method: 'POST',
@@ -57,27 +78,34 @@ export async function generateImage(request: GenerateRequest, maxRetries: number
 
             const data = await response.json()
 
+            // 统一使用标准 OpenAI 格式响应处理
             if (!data.choices?.[0]?.message) {
                 throw new Error('Invalid response from API')
             }
 
             const message = data.choices[0].message
+            let imageUrl: string | null = null
 
             // 检查是否返回图片
             if (message.images?.[0]?.image_url?.url) {
-                console.log(`成功生成图片 (第 ${attempt} 次尝试)`)
-                return { imageUrl: message.images[0].image_url.url }
+                imageUrl = message.images[0].image_url.url
             }
 
             // 检查content是否是base64图片
             if (typeof message.content === 'string' && message.content.startsWith('data:image/')) {
+                imageUrl = message.content
+            }
+
+            if (imageUrl) {
                 console.log(`成功生成图片 (第 ${attempt} 次尝试)`)
-                return { imageUrl: message.content }
+                return { imageUrl }
             }
 
             // 如果是文本回复或空回复，记录错误并重试
-            if (typeof message.content === 'string' && message.content.trim()) {
-                lastError = new Error(`模型返回了文本而非图片: ${message.content}`)
+            const textContent = message.content || ''
+
+            if (typeof textContent === 'string' && textContent.trim()) {
+                lastError = new Error(`模型返回了文本而非图片: ${textContent}`)
                 console.warn(`第 ${attempt} 次尝试失败:`, lastError.message)
             } else {
                 lastError = new Error('模型未返回有效图片')

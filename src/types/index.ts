@@ -5,6 +5,8 @@ export interface GenerateRequest {
     endpoint: string
     model: string
     aspectRatio?: string
+    imageSize?: string
+    enableGoogleSearch?: boolean
 }
 
 export interface GenerateResponse {

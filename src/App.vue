@@ -86,6 +86,17 @@
                         </div>
                         <AspectRatioSelector v-model="selectedAspectRatio" />
                     </div>
+
+                    <!-- Gemini 3 Pro Image 配置（仅当选择 Gemini 3 Pro Image 模型时显示） -->
+                    <div v-if="showGemini3ProConfig" class="flex flex-col">
+                        <div class="bg-gradient-to-r from-indigo-400 to-purple-500 text-white font-bold px-4 py-2 rounded-t-lg border-4 border-black border-b-0 flex items-center gap-2">
+                            🚀 Gemini 3 Pro Image 配置
+                        </div>
+                        <Gemini3ProConfig
+                            v-model:imageSize="gemini3ImageSize"
+                            v-model:enableGoogleSearch="gemini3EnableGoogleSearch"
+                        />
+                    </div>
                 </div>
 
                 <!-- 图文生图流程 -->
@@ -169,6 +180,7 @@ import StylePromptSelector from './components/StylePromptSelector.vue'
 import ResultDisplay from './components/ResultDisplay.vue'
 import Footer from './components/Footer.vue'
 import AspectRatioSelector from './components/AspectRatioSelector.vue'
+import Gemini3ProConfig from './components/Gemini3ProConfig.vue'
 import { fetchModels, generateImage } from './services/api'
 import { styleTemplates } from './data/templates'
 import { LocalStorage } from './utils/storage'
@@ -195,6 +207,10 @@ const isFetchingModels = ref(false)
 const modelsError = ref<string | null>(null)
 const selectedAspectRatio = ref('1:1')  // 默认宽高比为 1:1
 let hasSyncedInitialEndpoint = false
+
+// Gemini 3 Pro Image 配置状态
+const gemini3ImageSize = ref('2K')  // 默认图像尺寸
+const gemini3EnableGoogleSearch = ref(false)  // 默认不启用谷歌搜索
 
 // 组件挂载时从本地存储读取API密钥
 onMounted(() => {
@@ -510,14 +526,23 @@ const canGenerate = computed(
         !isLoading.value
 )
 
-// 判断是否显示宽高比选择器（仅当模型为 Gemini 2.5 Flash Image 系列时显示）
+// 判断是否显示宽高比选择器（Gemini 2.5 Flash Image 系列和 Gemini 3 Pro Image 模型时显示）
 const showAspectRatioSelector = computed(() => {
     const modelId = selectedModel.value.toLowerCase().trim()
     if (!modelId) return false
 
     const segments = modelId.split('/')
     const normalizedId = segments[segments.length - 1]
-    return normalizedId === 'gemini-2.5-flash-image' || normalizedId === 'gemini-2.5-flash-image-preview'
+    return normalizedId === 'gemini-2.5-flash-image' ||
+           normalizedId === 'gemini-2.5-flash-image-preview' ||
+           modelId.includes('gemini-3-pro-image')
+})
+
+// 判断是否显示 Gemini 3 Pro Image 配置
+const showGemini3ProConfig = computed(() => {
+    const modelId = selectedModel.value.toLowerCase().trim()
+    if (!modelId) return false
+    return modelId.includes('gemini-3-pro-image')
 })
 
 const handleTextToImageGenerate = async () => {
@@ -537,9 +562,15 @@ const handleTextToImageGenerate = async () => {
             model: selectedModel.value.trim() || DEFAULT_MODEL_ID
         }
 
-        // 如果显示宽高比选择器（Gemini 模型），则添加 aspectRatio 参数
+        // 如果显示宽高比选择器（Gemini 2.5 Flash Image 模型），则添加 aspectRatio 参数
         if (showAspectRatioSelector.value) {
             request.aspectRatio = selectedAspectRatio.value
+        }
+
+        // 如果显示 Gemini 3 Pro Image 配置，则添加相应参数
+        if (showGemini3ProConfig.value) {
+            request.imageSize = gemini3ImageSize.value
+            request.enableGoogleSearch = gemini3EnableGoogleSearch.value
         }
 
         const response = await generateImage(request)
@@ -617,9 +648,15 @@ const handleGenerate = async () => {
             model: selectedModel.value.trim() || DEFAULT_MODEL_ID
         }
 
-        // 如果显示宽高比选择器（Gemini 模型），则添加 aspectRatio 参数
+        // 如果显示宽高比选择器（Gemini 2.5 Flash Image 模型），则添加 aspectRatio 参数
         if (showAspectRatioSelector.value) {
             request.aspectRatio = selectedAspectRatio.value
+        }
+
+        // 如果显示 Gemini 3 Pro Image 配置，则添加相应参数
+        if (showGemini3ProConfig.value) {
+            request.imageSize = gemini3ImageSize.value
+            request.enableGoogleSearch = gemini3EnableGoogleSearch.value
         }
 
         const response = await generateImage(request)
