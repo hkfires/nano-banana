@@ -582,10 +582,6 @@ const handleTextToImageGenerate = async () => {
     }
 }
 
-const handlePushTextImageToUpload = (image: string) => {
-    pushImageToUpload(image)
-}
-
 const handlePushDisplayResult = (image: string) => {
     pushImageToUpload(image)
 }
@@ -668,11 +664,4 @@ const handleGenerate = async () => {
     }
 }
 
-const handleReset = () => {
-    selectedImages.value = []
-    selectedStyle.value = ''
-    customPrompt.value = ''
-    result.value = []
-    error.value = null
-}
 </script>

@@ -18,10 +18,10 @@
             <!-- Result Images -->
             <div v-else-if="results && results.length > 0" class="w-full">
                 <div class="grid gap-4" :class="gridClass">
-                    <div v-for="(img, index) in results" :key="index" class="relative group">
-                        <img :src="img" alt="生成的艺术作品" class="w-full rounded-lg border-2 border-black shadow-lg object-contain" @load="e => onImageLoad(e, index)" />
-                        <div v-if="imageSizes[index]" class="mt-1 text-center text-xs text-gray-500 font-mono">
-                            {{ imageSizes[index] }}
+                    <div v-for="(img, index) in results" :key="`${img}-${index}`" class="relative group">
+                        <img :src="img" alt="生成的艺术作品" class="w-full rounded-lg border-2 border-black shadow-lg object-contain" @load="e => onImageLoad(e, img)" />
+                        <div v-if="imageSizes[img]" class="mt-1 text-center text-xs text-gray-500 font-mono">
+                            {{ imageSizes[img] }}
                         </div>
                         <div class="absolute bottom-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
@@ -55,7 +55,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 
 const props = defineProps<{
     results: string[]
@@ -64,7 +64,15 @@ const props = defineProps<{
     canPush: boolean
 }>()
 
-const imageSizes = ref<Record<number, string>>({})
+const imageSizes = ref<Record<string, string>>({})
+
+watch(
+    () => props.results,
+    () => {
+        imageSizes.value = {}
+    },
+    { deep: true }
+)
 
 const gridClass = computed(() => {
     const count = props.results.length
@@ -74,10 +82,10 @@ const gridClass = computed(() => {
     return 'grid-cols-3'
 })
 
-const onImageLoad = (e: Event, index: number) => {
-    const img = e.target as HTMLImageElement
-    if (img.naturalWidth && img.naturalHeight) {
-        imageSizes.value[index] = `${img.naturalWidth} × ${img.naturalHeight}`
+const onImageLoad = (event: Event, image: string) => {
+    const img = event.currentTarget as HTMLImageElement | null
+    if (img?.naturalWidth && img.naturalHeight) {
+        imageSizes.value[image] = `${img.naturalWidth} × ${img.naturalHeight}`
     }
 }
 
