@@ -19,7 +19,10 @@
             <div v-else-if="results && results.length > 0" class="w-full">
                 <div class="grid gap-4" :class="gridClass">
                     <div v-for="(img, index) in results" :key="index" class="relative group">
-                        <img :src="img" alt="生成的艺术作品" class="w-full rounded-lg border-2 border-black shadow-lg object-contain" />
+                        <img :src="img" alt="生成的艺术作品" class="w-full rounded-lg border-2 border-black shadow-lg object-contain" @load="e => onImageLoad(e, index)" />
+                        <div v-if="imageSizes[index]" class="mt-1 text-center text-xs text-gray-500 font-mono">
+                            {{ imageSizes[index] }}
+                        </div>
                         <div class="absolute bottom-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
                                 v-if="canPush"
@@ -52,7 +55,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 
 const props = defineProps<{
     results: string[]
@@ -61,6 +64,8 @@ const props = defineProps<{
     canPush: boolean
 }>()
 
+const imageSizes = ref<Record<number, string>>({})
+
 const gridClass = computed(() => {
     const count = props.results.length
     if (count === 1) return 'grid-cols-1'
@@ -68,6 +73,13 @@ const gridClass = computed(() => {
     if (count <= 4) return 'grid-cols-2'
     return 'grid-cols-3'
 })
+
+const onImageLoad = (e: Event, index: number) => {
+    const img = e.target as HTMLImageElement
+    if (img.naturalWidth && img.naturalHeight) {
+        imageSizes.value[index] = `${img.naturalWidth} × ${img.naturalHeight}`
+    }
+}
 
 defineEmits<{
     download: [image: string]
