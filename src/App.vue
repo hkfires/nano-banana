@@ -157,7 +157,7 @@
             <div class="w-full">
                 <div class="bg-black text-white font-bold px-4 py-2 rounded-t-lg border-4 border-black border-b-0 flex items-center gap-2">✨ 生成结果</div>
                 <ResultDisplay
-                    :result="displayResult"
+                    :results="displayResults"
                     :loading="displayLoading"
                     :error="displayError"
                     :can-push="canPushDisplayResult"
@@ -193,10 +193,10 @@ const selectedImages = ref<string[]>([])
 const selectedStyle = ref('')
 const customPrompt = ref('')
 const isLoading = ref(false)
-const result = ref<string | null>(null)
+const result = ref<string[]>([])
 const error = ref<string | null>(null)
 const textToImagePrompt = ref('')
-const textToImageResult = ref<string | null>(null)
+const textToImageResult = ref<string[]>([])
 const textToImageError = ref<string | null>(null)
 const isTextToImageLoading = ref(false)
 const latestResultSource = ref<'text' | 'image' | null>(null)
@@ -493,10 +493,10 @@ const displayLoading = computed(() => {
     return isLoading.value || isTextToImageLoading.value
 })
 
-const displayResult = computed(() => {
+const displayResults = computed(() => {
     if (latestResultSource.value === 'image') return result.value
     if (latestResultSource.value === 'text') return textToImageResult.value
-    return result.value || textToImageResult.value
+    return result.value.length > 0 ? result.value : textToImageResult.value
 })
 
 const displayError = computed(() => {
@@ -505,7 +505,7 @@ const displayError = computed(() => {
     return error.value || textToImageError.value
 })
 
-const canPushDisplayResult = computed(() => Boolean(displayResult.value))
+const canPushDisplayResult = computed(() => Boolean(displayResults.value.length > 0))
 
 const canGenerateTextImage = computed(
     () =>
@@ -551,7 +551,7 @@ const handleTextToImageGenerate = async () => {
     latestResultSource.value = 'text'
     isTextToImageLoading.value = true
     textToImageError.value = null
-    textToImageResult.value = null
+    textToImageResult.value = []
 
     try {
         const request: GenerateRequest = {
@@ -574,26 +574,25 @@ const handleTextToImageGenerate = async () => {
         }
 
         const response = await generateImage(request)
-        textToImageResult.value = response.imageUrl
+        textToImageResult.value = response.imageUrls
         latestResultSource.value = 'text'
     } catch (err) {
         textToImageError.value = err instanceof Error ? err.message : '生成失败'
-        textToImageResult.value = null
+        textToImageResult.value = []
     } finally {
         isTextToImageLoading.value = false
     }
 }
 
-const handlePushTextImageToUpload = () => {
-    pushImageToUpload(textToImageResult.value)
+const handlePushTextImageToUpload = (image: string) => {
+    pushImageToUpload(image)
 }
 
-const handlePushDisplayResult = () => {
-    pushImageToUpload(displayResult.value)
+const handlePushDisplayResult = (image: string) => {
+    pushImageToUpload(image)
 }
 
-const handleDownloadResult = async () => {
-    const image = displayResult.value
+const handleDownloadResult = async (image: string) => {
     if (!image) return
     if (typeof window === 'undefined') return
 
@@ -634,7 +633,7 @@ const handleGenerate = async () => {
     isLoading.value = true
     error.value = null
     // 立即清除之前的结果，确保用户看到新的生成过程
-    result.value = null
+    result.value = []
 
     try {
         // 使用选中的样式模板或自定义提示词
@@ -660,12 +659,12 @@ const handleGenerate = async () => {
         }
 
         const response = await generateImage(request)
-        result.value = response.imageUrl
+        result.value = response.imageUrls
         latestResultSource.value = 'image'
     } catch (err) {
         error.value = err instanceof Error ? err.message : '生成失败'
         // 生成失败时也要清除结果
-        result.value = null
+        result.value = []
     } finally {
         isLoading.value = false
     }
@@ -675,7 +674,7 @@ const handleReset = () => {
     selectedImages.value = []
     selectedStyle.value = ''
     customPrompt.value = ''
-    result.value = null
+    result.value = []
     error.value = null
 }
 </script>

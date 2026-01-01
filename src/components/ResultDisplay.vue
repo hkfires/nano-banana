@@ -15,23 +15,27 @@
                 <p class="text-gray-600 text-sm">{{ error }}</p>
             </div>
 
-            <!-- Result Image -->
-            <div v-else-if="result" class="w-full h-full flex items-center justify-center relative">
-                <img :src="result" alt="生成的艺术作品" class="max-w-full max-h-[600px] rounded-lg border-2 border-black shadow-lg object-contain" />
-                <div class="absolute bottom-4 right-4 flex flex-col gap-2 items-stretch">
-                    <button
-                        v-if="canPush"
-                        @click="$emit('push')"
-                        class="px-4 py-2 bg-green-300 text-black font-bold border-2 border-black rounded-lg shadow-lg hover:bg-green-400 transition-all flex items-center justify-center gap-2"
-                    >
-                        🎨 二次创作
-                    </button>
-                    <button
-                        @click="$emit('download')"
-                        class="px-4 py-2 bg-yellow-300 text-black font-bold border-2 border-black rounded-lg shadow-lg hover:bg-yellow-400 transition-all flex items-center justify-center gap-2"
-                    >
-                        ⬇️ 下载图片
-                    </button>
+            <!-- Result Images -->
+            <div v-else-if="results && results.length > 0" class="w-full">
+                <div class="grid gap-4" :class="gridClass">
+                    <div v-for="(img, index) in results" :key="index" class="relative group">
+                        <img :src="img" alt="生成的艺术作品" class="w-full rounded-lg border-2 border-black shadow-lg object-contain" />
+                        <div class="absolute bottom-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                                v-if="canPush"
+                                @click="$emit('push', img)"
+                                class="px-3 py-1 bg-green-300 text-black font-bold border-2 border-black rounded-lg shadow-lg hover:bg-green-400 text-sm"
+                            >
+                                🎨 二次创作
+                            </button>
+                            <button
+                                @click="$emit('download', img)"
+                                class="px-3 py-1 bg-yellow-300 text-black font-bold border-2 border-black rounded-lg shadow-lg hover:bg-yellow-400 text-sm"
+                            >
+                                ⬇️ 下载
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -48,15 +52,25 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{
-    result: string | null
+import { computed } from 'vue'
+
+const props = defineProps<{
+    results: string[]
     loading: boolean
     error: string | null
     canPush: boolean
 }>()
 
+const gridClass = computed(() => {
+    const count = props.results.length
+    if (count === 1) return 'grid-cols-1'
+    if (count === 2) return 'grid-cols-2'
+    if (count <= 4) return 'grid-cols-2'
+    return 'grid-cols-3'
+})
+
 defineEmits<{
-    download: []
-    push: []
+    download: [image: string]
+    push: [image: string]
 }>()
 </script>

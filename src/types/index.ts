@@ -10,7 +10,7 @@ export interface GenerateRequest {
 }
 
 export interface GenerateResponse {
-    imageUrl: string
+    imageUrls: string[]
 }
 
 export interface ApiModel {

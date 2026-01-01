@@ -84,21 +84,31 @@ export async function generateImage(request: GenerateRequest, maxRetries: number
             }
 
             const message = data.choices[0].message
-            let imageUrl: string | null = null
+            const imageUrls: string[] = []
 
-            // 检查是否返回图片
-            if (message.images?.[0]?.image_url?.url) {
-                imageUrl = message.images[0].image_url.url
+            // 检查是否返回图片 (OpenAI/OpenRouter 格式：images 数组)
+            if (Array.isArray(message.images)) {
+                for (const img of message.images) {
+                    if (img?.image_url?.url) {
+                        imageUrls.push(img.image_url.url)
+                    }
+                }
             }
 
-            // 检查content是否是base64图片
+            // 检查 content 中是否有 base64 图片 (直接包含多张图片)
             if (typeof message.content === 'string' && message.content.startsWith('data:image/')) {
-                imageUrl = message.content
+                // 可能是多张 base64 图片，用正则提取
+                const base64Matches = message.content.match(/data:image\/[a-zA-Z0-9+]+;base64,[^\s"]+/g)
+                if (base64Matches) {
+                    imageUrls.push(...base64Matches)
+                } else {
+                    imageUrls.push(message.content)
+                }
             }
 
-            if (imageUrl) {
-                console.log(`成功生成图片 (第 ${attempt} 次尝试)`)
-                return { imageUrl }
+            if (imageUrls.length > 0) {
+                console.log(`成功生成 ${imageUrls.length} 张图片 (第 ${attempt} 次尝试)`)
+                return { imageUrls }
             }
 
             // 如果是文本回复或空回复，记录错误并重试
