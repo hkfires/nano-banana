@@ -420,11 +420,9 @@ const detectImageSupport = (model: ApiModel): boolean => {
 
 const buildModelLabel = (model: ApiModel): string => {
     if (model.name && typeof model.name === 'string' && model.name.trim()) {
-        return model.name.trim()
+        return `${model.id} - ${model.name.trim()}`
     }
-    const segments = model.id.split('/')
-    const lastSegment = segments[segments.length - 1]
-    return lastSegment || model.id
+    return model.id
 }
 
 const handleModelPicked = () => {
