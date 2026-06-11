@@ -1,4 +1,7 @@
 import type { ModelOption } from '../types'
+import { normalizeApiBase } from '../config/api'
+import type { ModelFamily, ModelImageSettings } from '../config/modelCapabilities'
+import { getDefaultModelImageSettings, isSupportedModelFamily, normalizeModelImageSettings } from '../config/modelCapabilities'
 
 // 本地存储工具类
 export class LocalStorage {
@@ -6,6 +9,7 @@ export class LocalStorage {
     private static readonly API_ENDPOINT = 'nano-banana-api-endpoint'
     private static readonly MODEL_ID = 'nano-banana-model-id'
     private static readonly MODEL_CACHE = 'nano-banana-model-cache'
+    private static readonly MODEL_IMAGE_SETTINGS = 'nano-banana-model-image-settings'
 
     // 保存API密钥
     static saveApiKey(apiKey: string): void {
@@ -38,7 +42,7 @@ export class LocalStorage {
     // 保存自定义端点
     static saveApiEndpoint(endpoint: string): void {
         try {
-            localStorage.setItem(this.API_ENDPOINT, endpoint)
+            localStorage.setItem(this.API_ENDPOINT, normalizeApiBase(endpoint) || endpoint)
         } catch (error) {
             console.warn('无法保存API端点到本地存储:', error)
         }
@@ -148,6 +152,56 @@ export class LocalStorage {
         return {}
     }
 
+
+    static getModelImageSettingsMap(): Partial<Record<ModelFamily, ModelImageSettings>> {
+        try {
+            const raw = localStorage.getItem(this.MODEL_IMAGE_SETTINGS)
+            if (!raw) return {}
+
+            const parsed = JSON.parse(raw)
+            if (!parsed || typeof parsed !== 'object') return {}
+
+            const result: Partial<Record<ModelFamily, ModelImageSettings>> = {}
+            for (const [family, settings] of Object.entries(parsed)) {
+                if (!settings || typeof settings !== 'object') continue
+                const modelFamily = family as ModelFamily
+                if (!isSupportedModelFamily(modelFamily)) continue
+                result[modelFamily] = normalizeModelImageSettings(
+                    modelFamily,
+                    settings as Partial<ModelImageSettings>
+                )
+            }
+            return result
+        } catch (error) {
+            console.warn('无法从本地存储读取模型图像设置:', error)
+            return {}
+        }
+    }
+
+    static saveModelImageSettingsMap(settingsMap: Partial<Record<ModelFamily, ModelImageSettings>>): void {
+        try {
+            localStorage.setItem(this.MODEL_IMAGE_SETTINGS, JSON.stringify(settingsMap))
+        } catch (error) {
+            console.warn('无法保存模型图像设置到本地存储:', error)
+        }
+    }
+
+    static getModelImageSettings(family: ModelFamily): ModelImageSettings {
+        if (!isSupportedModelFamily(family)) {
+            return { aspectRatio: '1:1' }
+        }
+
+        const cached = this.getModelImageSettingsMap()[family]
+        return normalizeModelImageSettings(family, cached || getDefaultModelImageSettings(family))
+    }
+
+    static saveModelImageSettings(family: ModelFamily, settings: ModelImageSettings): void {
+        if (!isSupportedModelFamily(family)) return
+
+        const map = this.getModelImageSettingsMap()
+        map[family] = normalizeModelImageSettings(family, settings)
+        this.saveModelImageSettingsMap(map)
+    }
     private static normalizeEndpoint(endpoint: string): string {
         return endpoint.trim().replace(/\/$/, '').toLowerCase()
     }

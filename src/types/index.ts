@@ -7,6 +7,7 @@ export interface GenerateRequest {
     aspectRatio?: string
     imageSize?: string
     enableGoogleSearch?: boolean
+    resolution?: string
 }
 
 export interface GenerateResponse {

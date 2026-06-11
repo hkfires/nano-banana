@@ -43,7 +43,7 @@
                         type="text"
                         :value="endpoint"
                         @input="$emit('update:endpoint', ($event.target as HTMLInputElement).value)"
-                        placeholder="例如 https://openrouter.ai/api/v1/chat/completions"
+                        placeholder="例如 https://openrouter.ai/api/v1"
                         class="flex-1 px-3 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
                     />
                     <button
@@ -55,7 +55,7 @@
                         ♻️
                     </button>
                 </div>
-                <p class="text-xs text-gray-500 mt-1">如果你的模型提供方与 OpenRouter 不同，可在此填写自定义地址</p>
+                <p class="text-xs text-gray-500 mt-1">只需填写到 /v1，程序会自动拼接 chat/completions、models、images 等路径</p>
             </div>
 
             <div>

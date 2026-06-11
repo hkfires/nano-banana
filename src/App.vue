@@ -79,24 +79,11 @@
                         </div>
                     </div>
 
-                    <!-- 宽高比选择器（仅当选择 Gemini 2.5 Flash Image 系列模型时显示） -->
-                    <div v-if="showAspectRatioSelector" class="flex flex-col">
-                        <div class="bg-gradient-to-r from-purple-400 to-pink-500 text-white font-bold px-4 py-2 rounded-t-lg border-4 border-black border-b-0 flex items-center gap-2">
-                            📐 图像宽高比
-                        </div>
-                        <AspectRatioSelector v-model="selectedAspectRatio" :model-type="showGemini3ProConfig ? 'gemini-3-pro-image' : 'default'" :image-size="gemini3ImageSize" />
-                    </div>
-
-                    <!-- Gemini 3 Pro Image 配置（仅当选择 Gemini 3 Pro Image 模型时显示） -->
-                    <div v-if="showGemini3ProConfig" class="flex flex-col">
-                        <div class="bg-gradient-to-r from-indigo-400 to-purple-500 text-white font-bold px-4 py-2 rounded-t-lg border-4 border-black border-b-0 flex items-center gap-2">
-                            🚀 Gemini 3 Pro Image 配置
-                        </div>
-                        <Gemini3ProConfig
-                            v-model:imageSize="gemini3ImageSize"
-                            v-model:enableGoogleSearch="gemini3EnableGoogleSearch"
-                        />
-                    </div>
+                    <ModelImageSettings
+                        :model-id="selectedModel"
+                        :settings="currentModelSettings"
+                        @update:settings="handleModelSettingsUpdate"
+                    />
                 </div>
 
                 <!-- 图文生图流程 -->
@@ -179,13 +166,14 @@ import ImageUpload from './components/ImageUpload.vue'
 import StylePromptSelector from './components/StylePromptSelector.vue'
 import ResultDisplay from './components/ResultDisplay.vue'
 import Footer from './components/Footer.vue'
-import AspectRatioSelector from './components/AspectRatioSelector.vue'
-import Gemini3ProConfig from './components/Gemini3ProConfig.vue'
+import ModelImageSettings from './components/ModelImageSettings.vue'
 import { fetchModels, generateImage } from './services/api'
 import { styleTemplates } from './data/templates'
 import { LocalStorage } from './utils/storage'
 import type { ApiModel, GenerateRequest, ModelOption } from './types'
-import { DEFAULT_API_ENDPOINT, DEFAULT_MODEL_ID } from './config/api'
+import { DEFAULT_API_ENDPOINT, DEFAULT_MODEL_ID, normalizeApiBase } from './config/api'
+import { getModelCapability, normalizeModelImageSettings, resolveModelFamily } from './config/modelCapabilities'
+import type { ModelFamily, ModelImageSettings as ModelImageSettingsType } from './config/modelCapabilities'
 
 const apiKey = ref('')
 const apiEndpoint = ref('')  // 改为空字符串，避免初始化时触发 watch
@@ -205,12 +193,8 @@ const modelOptions = ref<ModelOption[]>([])
 const selectedModel = ref('')  // 改为空字符串，避免初始化时使用默认值
 const isFetchingModels = ref(false)
 const modelsError = ref<string | null>(null)
-const selectedAspectRatio = ref('1:1')  // 默认宽高比为 1:1
+const modelImageSettingsMap = ref<Partial<Record<ModelFamily, ModelImageSettingsType>>>({})
 let hasSyncedInitialEndpoint = false
-
-// Gemini 3 Pro Image 配置状态
-const gemini3ImageSize = ref('2K')  // 默认图像尺寸
-const gemini3EnableGoogleSearch = ref(false)  // 默认不启用谷歌搜索
 
 // 组件挂载时从本地存储读取API密钥
 onMounted(() => {
@@ -227,8 +211,10 @@ onMounted(() => {
     }
 
     // 先设置端点，再恢复模型缓存，最后设置模型ID
-    const endpointToUse = savedEndpoint.trim() || DEFAULT_API_ENDPOINT
+    const endpointToUse = normalizeApiBase(savedEndpoint) || DEFAULT_API_ENDPOINT
     const modelIdToUse = savedModelId.trim() || DEFAULT_MODEL_ID
+
+    modelImageSettingsMap.value = LocalStorage.getModelImageSettingsMap()
 
     // 恢复模型缓存
     restoreModelOptionsFromCache(endpointToUse)
@@ -524,24 +510,54 @@ const canGenerate = computed(
         !isLoading.value
 )
 
-// 判断是否显示宽高比选择器（Gemini 2.5 Flash Image 系列和 Gemini 3 Pro Image 模型时显示）
-const showAspectRatioSelector = computed(() => {
-    const modelId = selectedModel.value.toLowerCase().trim()
-    if (!modelId) return false
+const currentModelFamily = computed(() => resolveModelFamily(selectedModel.value))
 
-    const segments = modelId.split('/')
-    const normalizedId = segments[segments.length - 1]
-    return normalizedId === 'gemini-2.5-flash-image' ||
-           normalizedId === 'gemini-2.5-flash-image-preview' ||
-           modelId.includes('gemini-3-pro-image')
+const currentModelCapability = computed(() => getModelCapability(selectedModel.value))
+
+const currentModelSettings = computed(() => {
+    const family = currentModelFamily.value
+    if (family === 'unsupported') {
+        return { aspectRatio: '1:1' }
+    }
+
+    const cached = modelImageSettingsMap.value[family]
+    return normalizeModelImageSettings(family, cached)
 })
 
-// 判断是否显示 Gemini 3 Pro Image 配置
-const showGemini3ProConfig = computed(() => {
-    const modelId = selectedModel.value.toLowerCase().trim()
-    if (!modelId) return false
-    return modelId.includes('gemini-3-pro-image')
-})
+const handleModelSettingsUpdate = (settings: ModelImageSettingsType) => {
+    const family = currentModelFamily.value
+    if (family === 'unsupported') return
+
+    const normalized = normalizeModelImageSettings(family, settings)
+    modelImageSettingsMap.value = {
+        ...modelImageSettingsMap.value,
+        [family]: normalized
+    }
+    LocalStorage.saveModelImageSettings(family, normalized)
+}
+
+const applyModelSettingsToRequest = (request: GenerateRequest) => {
+    const capability = currentModelCapability.value
+    if (!capability) return
+
+    const settings = currentModelSettings.value
+
+    if (capability.supportsAspectRatio) {
+        request.aspectRatio = settings.aspectRatio
+    }
+
+    if (capability.supportsImageSize && settings.imageSize) {
+        request.imageSize = settings.imageSize
+    }
+
+    if (capability.supportsGoogleSearch) {
+        request.enableGoogleSearch = Boolean(settings.enableGoogleSearch)
+    }
+
+    if (capability.supportsResolution && settings.resolution) {
+        request.resolution = settings.resolution
+    }
+}
 
 const handleTextToImageGenerate = async () => {
     if (!canGenerateTextImage.value) return
@@ -560,16 +576,7 @@ const handleTextToImageGenerate = async () => {
             model: selectedModel.value.trim() || DEFAULT_MODEL_ID
         }
 
-        // 如果显示宽高比选择器（Gemini 2.5 Flash Image 模型），则添加 aspectRatio 参数
-        if (showAspectRatioSelector.value) {
-            request.aspectRatio = selectedAspectRatio.value
-        }
-
-        // 如果显示 Gemini 3 Pro Image 配置，则添加相应参数
-        if (showGemini3ProConfig.value) {
-            request.imageSize = gemini3ImageSize.value
-            request.enableGoogleSearch = gemini3EnableGoogleSearch.value
-        }
+        applyModelSettingsToRequest(request)
 
         const response = await generateImage(request)
         textToImageResult.value = response.imageUrls
@@ -641,16 +648,7 @@ const handleGenerate = async () => {
             model: selectedModel.value.trim() || DEFAULT_MODEL_ID
         }
 
-        // 如果显示宽高比选择器（Gemini 2.5 Flash Image 模型），则添加 aspectRatio 参数
-        if (showAspectRatioSelector.value) {
-            request.aspectRatio = selectedAspectRatio.value
-        }
-
-        // 如果显示 Gemini 3 Pro Image 配置，则添加相应参数
-        if (showGemini3ProConfig.value) {
-            request.imageSize = gemini3ImageSize.value
-            request.enableGoogleSearch = gemini3EnableGoogleSearch.value
-        }
+        applyModelSettingsToRequest(request)
 
         const response = await generateImage(request)
         result.value = response.imageUrls

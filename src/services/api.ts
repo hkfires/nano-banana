@@ -1,5 +1,6 @@
 import type { ApiModel, GenerateRequest, GenerateResponse, ModelListResponse } from '../types'
-import { DEFAULT_API_ENDPOINT, DEFAULT_MODEL_ID } from '../config/api'
+import { DEFAULT_API_ENDPOINT, DEFAULT_MODEL_ID, normalizeApiBase, resolveChatCompletionsEndpoint } from '../config/api'
+import { resolveModelFamily, usesImagesApi } from '../config/modelCapabilities'
 
 export async function generateImage(request: GenerateRequest, maxRetries: number = 5): Promise<GenerateResponse> {
     let lastError: Error | null = null
@@ -8,8 +9,15 @@ export async function generateImage(request: GenerateRequest, maxRetries: number
         try {
             console.log(`尝试生成图片 (第 ${attempt}/${maxRetries} 次)...`)
 
-            const apiEndpoint = request.endpoint?.trim() || DEFAULT_API_ENDPOINT
+            const apiBase = normalizeApiBase(request.endpoint || '') || DEFAULT_API_ENDPOINT
+            const apiEndpoint = resolveChatCompletionsEndpoint(apiBase)
             const modelId = request.model?.trim() || DEFAULT_MODEL_ID
+
+            if (usesImagesApi(modelId)) {
+                const response = await generateWithImagesApi(request, apiBase, modelId)
+                console.log(`成功生成 ${response.imageUrls.length} 张图片 (第 ${attempt} 次尝试)`)
+                return response
+            }
 
             // 检查是否是 Gemini 3 Pro Image 模型
             const isGemini3ProImage = modelId.toLowerCase().includes('gemini-3-pro-image')
@@ -111,45 +119,207 @@ export async function generateImage(request: GenerateRequest, maxRetries: number
                 return { imageUrls }
             }
 
-            // 如果是文本回复或空回复，记录错误并重试
+            // 文本回复或空回复不属于限流，直接失败
             const textContent = message.content || ''
 
             if (typeof textContent === 'string' && textContent.trim()) {
-                lastError = new Error(`模型返回了文本而非图片: ${textContent}`)
-                console.warn(`第 ${attempt} 次尝试失败:`, lastError.message)
-            } else {
-                lastError = new Error('模型未返回有效图片')
-                console.warn(`第 ${attempt} 次尝试失败:`, lastError.message)
+                throw new Error(`模型返回了文本而非图片: ${textContent}`)
             }
 
-            // 如果还有重试次数，继续下一次尝试
-            if (attempt < maxRetries) {
-                console.log(`准备第 ${attempt + 1} 次重试...`)
-                continue
-            }
+            throw new Error('模型未返回有效图片')
 
         } catch (err) {
-            // 对于网络错误或API错误，也进行重试
             lastError = err instanceof Error ? err : new Error(String(err))
             console.error(`第 ${attempt} 次尝试出错:`, lastError.message)
 
-            // 如果是最后一次尝试，直接抛出错误
-            if (attempt >= maxRetries) {
-                break
+            if (shouldRetryOnRateLimit(lastError, attempt, maxRetries)) {
+                console.log(`遇到 429 限流，准备第 ${attempt + 1} 次重试...`)
+                continue
             }
 
-            // 否则继续重试
-            console.log(`准备第 ${attempt + 1} 次重试...`)
+            throw lastError
         }
     }
 
-    // 所有重试都失败后，抛出最后一次的错误
     throw new Error(`在 ${maxRetries} 次尝试后仍未能生成图片。最后错误: ${lastError?.message || '未知错误'}`)
 }
 
+function getApiErrorStatus(error: Error): number | null {
+    const match = error.message.match(/^API error (\d{3}):/)
+    if (!match) return null
+    return Number(match[1])
+}
+
+function shouldRetryOnRateLimit(error: Error, attempt: number, maxRetries: number): boolean {
+    return getApiErrorStatus(error) === 429 && attempt < maxRetries
+}
+
+async function generateWithImagesApi(request: GenerateRequest, apiBase: string, modelId: string): Promise<GenerateResponse> {
+    const imageUrls = request.images.length > 0
+        ? await editWithImagesApi(request, apiBase, modelId)
+        : await createWithImagesApi(request, apiBase, modelId)
+
+    if (!imageUrls.length) {
+        throw new Error('模型未返回有效图片')
+    }
+
+    return { imageUrls }
+}
+
+async function createWithImagesApi(request: GenerateRequest, apiBase: string, modelId: string): Promise<string[]> {
+    const payload: Record<string, unknown> = {
+        model: modelId,
+        prompt: request.prompt
+    }
+
+    const family = resolveModelFamily(modelId)
+    if (family === 'grok-imagine-image' || family === 'grok-imagine-image-quality') {
+        if (request.aspectRatio) {
+            payload.aspect_ratio = request.aspectRatio
+        }
+        if (family === 'grok-imagine-image-quality' && request.resolution) {
+            payload.resolution = request.resolution
+        }
+    } else {
+        const size = resolveGptImage2Size(request.aspectRatio)
+        if (size) {
+            payload.size = size
+        }
+    }
+
+    const response = await fetch(resolveOpenAIImagesEndpoint(apiBase, 'generations'), {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${request.apikey}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+    })
+
+    return parseOpenAIImageResponse(await readJsonResponse(response))
+}
+
+async function editWithImagesApi(request: GenerateRequest, apiBase: string, modelId: string): Promise<string[]> {
+    const formData = new FormData()
+    formData.append('model', modelId)
+    formData.append('prompt', request.prompt)
+
+    const size = resolveGptImage2Size(request.aspectRatio)
+    if (size) {
+        formData.append('size', size)
+    }
+
+    for (const [index, image] of request.images.entries()) {
+        const file = await dataUrlToFile(image, `image-${index + 1}.png`)
+        formData.append('image[]', file)
+    }
+
+    const response = await fetch(resolveOpenAIImagesEndpoint(apiBase, 'edits'), {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${request.apikey}`
+        },
+        body: formData
+    })
+
+    return parseOpenAIImageResponse(await readJsonResponse(response))
+}
+
+async function readJsonResponse(response: Response): Promise<unknown> {
+    const text = await response.text()
+
+    if (!response.ok) {
+        throw new Error(`API error ${response.status}: ${text}`)
+    }
+
+    try {
+        return JSON.parse(text)
+    } catch (error) {
+        throw new Error(`Invalid JSON response from API: ${text}`)
+    }
+}
+
+function parseOpenAIImageResponse(data: unknown): string[] {
+    const items = (data as { data?: unknown[] })?.data
+    if (!Array.isArray(items)) {
+        throw new Error('Invalid response from API')
+    }
+
+    const imageUrls: string[] = []
+    for (const item of items) {
+        const image = item as { b64_json?: unknown; url?: unknown }
+        if (typeof image.b64_json === 'string' && image.b64_json.trim()) {
+            imageUrls.push(`data:image/png;base64,${image.b64_json}`)
+        } else if (typeof image.url === 'string' && image.url.trim()) {
+            imageUrls.push(image.url)
+        }
+    }
+
+    return imageUrls
+}
+
+async function dataUrlToFile(dataUrl: string, fallbackName: string): Promise<File> {
+    const response = await fetch(dataUrl)
+    const blob = await response.blob()
+    const extension = resolveImageExtension(blob.type)
+    const fileName = fallbackName.replace(/\.png$/, `.${extension}`)
+    return new File([blob], fileName, { type: blob.type || 'image/png' })
+}
+
+function resolveImageExtension(mimeType: string): string {
+    const subtype = mimeType.split('/')[1]?.split(';')[0]
+    if (!subtype) return 'png'
+    if (subtype === 'jpeg') return 'jpg'
+    return subtype
+}
+
+
+
+function resolveOpenAIImagesEndpoint(apiBase: string, action: 'generations' | 'edits'): string {
+    const base = normalizeApiBase(apiBase) || DEFAULT_API_ENDPOINT
+    try {
+        const url = new URL(base)
+        const segments = url.pathname.split('/').filter(Boolean)
+        const imagesIndex = segments.lastIndexOf('images')
+
+        if (imagesIndex >= 0) {
+            segments.splice(imagesIndex + 1)
+        } else {
+            while (segments.length > 0 && ['chat', 'completions', 'responses', 'generate', 'generations', 'edits'].includes(segments[segments.length - 1])) {
+                segments.pop()
+            }
+            segments.push('images')
+        }
+
+        segments.push(action)
+        url.pathname = '/' + segments.join('/')
+        return url.toString()
+    } catch (error) {
+        console.warn('无法解析 OpenAI 图片端点，将使用默认规则:', error)
+        return `${base.replace(/\/$/, '')}/images/${action}`
+    }
+}
+
+function resolveGptImage2Size(aspectRatio?: string): string | undefined {
+    const sizeMap: Record<string, string> = {
+        '1:1': '1024x1024',
+        '2:3': '1024x1536',
+        '3:2': '1536x1024',
+        '3:4': '896x1200',
+        '4:3': '1200x896',
+        '4:5': '896x1152',
+        '5:4': '1152x896',
+        '9:16': '768x1344',
+        '16:9': '1344x768',
+        '21:9': '1536x672'
+    }
+
+    return aspectRatio ? sizeMap[aspectRatio] : undefined
+}
+
 export async function fetchModels(apikey: string, endpoint: string): Promise<ApiModel[]> {
-    const apiEndpoint = endpoint?.trim() || DEFAULT_API_ENDPOINT
-    const modelsUrl = resolveModelsEndpoint(apiEndpoint)
+    const apiBase = normalizeApiBase(endpoint) || DEFAULT_API_ENDPOINT
+    const modelsUrl = resolveModelsEndpoint(apiBase)
 
     const response = await fetch(modelsUrl, {
         method: 'GET',
@@ -174,9 +344,10 @@ export async function fetchModels(apikey: string, endpoint: string): Promise<Api
     return models
 }
 
-function resolveModelsEndpoint(endpoint: string): string {
+function resolveModelsEndpoint(apiBase: string): string {
+    const base = normalizeApiBase(apiBase) || DEFAULT_API_ENDPOINT
     try {
-        const url = new URL(endpoint)
+        const url = new URL(base)
         const segments = url.pathname.split('/').filter(Boolean)
 
         if (segments.length === 0) {
@@ -206,6 +377,6 @@ function resolveModelsEndpoint(endpoint: string): string {
         return url.toString()
     } catch (error) {
         console.warn('无法解析模型列表端点，将使用默认规则:', error)
-        return endpoint.replace(/\/$/, '') + '/models'
+        return `${base.replace(/\/$/, '')}/models`
     }
 }

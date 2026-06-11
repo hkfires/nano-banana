@@ -91,6 +91,19 @@ const defaultAspectRatioOptions: AspectRatioOption[] = [
     { value: '21:9', label: '21:9 - 1536x672', resolution: '1536x672' }
 ]
 
+const gptImage2AspectRatioOptions: AspectRatioOption[] = [
+    { value: '1:1', label: '1:1 - 1024x1024', resolution: '1024x1024' },
+    { value: '2:3', label: '2:3 - 1024x1536', resolution: '1024x1536' },
+    { value: '3:2', label: '3:2 - 1536x1024', resolution: '1536x1024' },
+    { value: '3:4', label: '3:4 - 896x1200', resolution: '896x1200' },
+    { value: '4:3', label: '4:3 - 1200x896', resolution: '1200x896' },
+    { value: '4:5', label: '4:5 - 896x1152', resolution: '896x1152' },
+    { value: '5:4', label: '5:4 - 1152x896', resolution: '1152x896' },
+    { value: '9:16', label: '9:16 - 768x1344', resolution: '768x1344' },
+    { value: '16:9', label: '16:9 - 1344x768', resolution: '1344x768' },
+    { value: '21:9', label: '21:9 - 1536x672', resolution: '1536x672' }
+]
+
 // 根据模型类型和图像尺寸生成动态宽高比选项
 const aspectRatioOptions = computed(() => {
     if (props.modelType === 'gemini-3-pro-image' && props.imageSize && gemini3ProImageData[props.imageSize as keyof typeof gemini3ProImageData]) {
@@ -100,6 +113,9 @@ const aspectRatioOptions = computed(() => {
             label: `${ratio} - ${dimensions.width}x${dimensions.height}`,
             resolution: `${dimensions.width}x${dimensions.height}`
         }))
+    }
+    if (props.modelType === 'gpt-image-2') {
+        return gptImage2AspectRatioOptions
     }
     return defaultAspectRatioOptions
 })
