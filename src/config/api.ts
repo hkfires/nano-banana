@@ -1,5 +1,6 @@
 export const DEFAULT_API_ENDPOINT = 'https://openrouter.ai/api/v1'
 export const DEFAULT_MODEL_ID = 'google/gemini-2.5-flash-image-preview:free'
+export const DEFAULT_MAX_RETRIES = 3
 
 /** Normalize user input to an API base URL ending at /v1 (or compatible root). */
 export function normalizeApiBase(endpoint: string): string {

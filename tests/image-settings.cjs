@@ -61,6 +61,35 @@ global.fetch = async (url, options) => {
                 if (images.length) assert.equal(body.image.url, images[0])
             }
         }
-        console.log('Image settings and request tests passed')
+
+        // 验证重试逻辑与自定义重试次数
+        let retryAttempts = 0
+        global.fetch = async () => {
+            retryAttempts++
+            if (retryAttempts < 2) {
+                return new Response('Rate limited', { status: 429, statusText: 'Too Many Requests' })
+            }
+            return new Response(JSON.stringify({ data: [{ b64_json: 'retry_success' }] }))
+        }
+        const retryResult = await api.generateImage({ ...base, maxRetries: 3 })
+        assert.equal(retryAttempts, 2)
+        assert.equal(retryResult.imageUrls[0], 'data:image/png;base64,retry_success')
+
+        // 验证当 maxRetries = 1 时遇到 429 不重试直接抛出
+        let singleAttemptCount = 0
+        global.fetch = async () => {
+            singleAttemptCount++
+            return new Response('Rate limited', { status: 429, statusText: 'Too Many Requests' })
+        }
+        let singleFailed = false
+        try {
+            await api.generateImage({ ...base, maxRetries: 1 })
+        } catch (e) {
+            singleFailed = true
+        }
+        assert.ok(singleFailed)
+        assert.equal(singleAttemptCount, 1)
+
+        console.log('Image settings, request tests, and retry options passed')
     } finally { global.fetch = originalFetch }
 })().catch(error => { console.error(error); process.exitCode = 1 })

@@ -397,6 +397,7 @@
             v-model:is-open="showApiModal"
             v-model:api-key="apiKey"
             v-model:endpoint="apiEndpoint"
+            v-model:max-retries="maxRetries"
             :models-count="modelOptions.length"
             :is-fetching-models="isFetchingModels"
             :models-error="modelsError"
@@ -429,10 +430,12 @@ const activeWorkflow = ref<'text' | 'image'>('text')
 const savedInitKey = LocalStorage.getApiKey()
 const savedInitEndpoint = normalizeApiBase(LocalStorage.getApiEndpoint()) || DEFAULT_API_ENDPOINT
 const savedInitModel = LocalStorage.getModelId() || ''
+const savedInitMaxRetries = LocalStorage.getMaxRetries()
 
 const apiKey = ref(savedInitKey)
 const apiEndpoint = ref(savedInitEndpoint)
 const selectedModel = ref(savedInitModel)
+const maxRetries = ref(savedInitMaxRetries)
 const showApiModal = ref(false)
 
 const modelOptions = ref<ModelOption[]>([])
@@ -504,6 +507,13 @@ const onGlobalKeyDown = (e: KeyboardEvent) => {
         }
     }
 }
+
+watch(
+    maxRetries,
+    (val: number) => {
+        LocalStorage.saveMaxRetries(val)
+    }
+)
 
 watch(
     apiKey,
@@ -821,7 +831,8 @@ const handleTextToImageGenerate = async () => {
             images: [],
             apikey: apiKey.value,
             endpoint: apiEndpoint.value.trim() || DEFAULT_API_ENDPOINT,
-            model: selectedModel.value.trim()
+            model: selectedModel.value.trim(),
+            maxRetries: maxRetries.value
         }
 
         applyModelSettingsToRequest(request)
@@ -870,7 +881,8 @@ const handleGenerate = async () => {
             images: selectedImages.value,
             apikey: apiKey.value,
             endpoint: apiEndpoint.value.trim() || DEFAULT_API_ENDPOINT,
-            model: selectedModel.value.trim()
+            model: selectedModel.value.trim(),
+            maxRetries: maxRetries.value
         }
 
         applyModelSettingsToRequest(request)

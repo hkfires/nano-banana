@@ -1,8 +1,9 @@
 import type { ApiModel, GenerateRequest, GenerateResponse, ModelListResponse } from '../types'
-import { DEFAULT_API_ENDPOINT, DEFAULT_MODEL_ID, normalizeApiBase, resolveChatCompletionsEndpoint } from '../config/api'
+import { DEFAULT_API_ENDPOINT, DEFAULT_MAX_RETRIES, DEFAULT_MODEL_ID, normalizeApiBase, resolveChatCompletionsEndpoint } from '../config/api'
 import { getModelCapability, resolveGptImageSize, usesImagesApi } from '../config/modelCapabilities'
 
-export async function generateImage(request: GenerateRequest, maxRetries: number = 5): Promise<GenerateResponse> {
+export async function generateImage(request: GenerateRequest, customMaxRetries?: number): Promise<GenerateResponse> {
+    const maxRetries = Math.max(1, Math.floor(customMaxRetries ?? request.maxRetries ?? DEFAULT_MAX_RETRIES))
     let lastError: Error | null = null
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -129,8 +130,10 @@ export async function generateImage(request: GenerateRequest, maxRetries: number
             lastError = err instanceof Error ? err : new Error(String(err))
             console.error(`第 ${attempt} 次尝试出错:`, lastError.message)
 
-            if (shouldRetryOnRateLimit(lastError, attempt, maxRetries)) {
-                console.log(`遇到 429 限流，准备第 ${attempt + 1} 次重试...`)
+            if (shouldRetry(lastError, attempt, maxRetries)) {
+                const delay = Math.min(1000 * attempt, 3000)
+                console.warn(`遇到可重试错误 (${lastError.message})，将在 ${delay}ms 后准备第 ${attempt + 1} 次重试...`)
+                await new Promise(resolve => setTimeout(resolve, delay))
                 continue
             }
 
@@ -147,8 +150,21 @@ function getApiErrorStatus(error: Error): number | null {
     return Number(match[1])
 }
 
+function isRetryableError(error: Error): boolean {
+    const status = getApiErrorStatus(error)
+    if (status) {
+        return status === 429 || status === 502 || status === 503 || status === 504 || status === 408
+    }
+    const msg = error.message.toLowerCase()
+    return msg.includes('failed to fetch') || msg.includes('networkerror') || msg.includes('timeout')
+}
+
+function shouldRetry(error: Error, attempt: number, maxRetries: number): boolean {
+    return attempt < maxRetries && isRetryableError(error)
+}
+
 function shouldRetryOnRateLimit(error: Error, attempt: number, maxRetries: number): boolean {
-    return getApiErrorStatus(error) === 429 && attempt < maxRetries
+    return shouldRetry(error, attempt, maxRetries)
 }
 
 async function generateWithImagesApi(request: GenerateRequest, apiBase: string, modelId: string): Promise<GenerateResponse> {

@@ -96,6 +96,29 @@
                     </p>
                 </div>
 
+                <!-- 自动重试设置 (全局请求策略) -->
+                <div>
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="block text-xs font-semibold text-slate-700">
+                            全局自动重试次数 (Auto Retry)
+                        </label>
+                        <span class="text-[11px] text-slate-400 font-mono">默认 3 次</span>
+                    </div>
+                    <select
+                        v-model.number="selectedMaxRetries"
+                        class="w-full px-3 py-2 bg-slate-50 hover:bg-slate-100/60 focus:bg-white border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all cursor-pointer"
+                    >
+                        <option :value="1" :selected="selectedMaxRetries === 1">关闭重试 (单次尝试)</option>
+                        <option :value="2" :selected="selectedMaxRetries === 2">重试 1 次 (最多 2 次尝试)</option>
+                        <option :value="3" :selected="selectedMaxRetries === 3">重试 2 次 (最多 3 次尝试，默认)</option>
+                        <option :value="4" :selected="selectedMaxRetries === 4">重试 3 次 (最多 4 次尝试)</option>
+                        <option :value="5" :selected="selectedMaxRetries === 5">重试 4 次 (最多 5 次尝试)</option>
+                    </select>
+                    <p class="text-xs text-slate-400 mt-1">
+                        全局配置：遇到 429 限流或瞬态网络抖动时自动重新发起请求，默认 3 次。
+                    </p>
+                </div>
+
                 <!-- 从端点拉取模型 -->
                 <div class="pt-2.5 border-t border-slate-100">
                     <div class="flex flex-wrap items-center justify-between gap-2.5">
@@ -146,25 +169,43 @@ import { ref, computed } from 'vue'
 import { DEFAULT_API_ENDPOINT } from '../config/api'
 import { LocalStorage } from '../utils/storage'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
     isOpen: boolean
     apiKey: string
     endpoint: string
     modelsCount: number
     isFetchingModels: boolean
     modelsError: string | null
-}>()
+    maxRetries?: number
+    'max-retries'?: number
+}>(), {
+    maxRetries: 3
+})
 
 const emit = defineEmits<{
     'update:isOpen': [value: boolean]
     'update:apiKey': [value: string]
     'update:api-key': [value: string]
     'update:endpoint': [value: string]
+    'update:maxRetries': [value: number]
+    'update:max-retries': [value: number]
     'fetch-models': []
     'clear-key': []
 }>()
 
 const showKey = ref(false)
+
+const selectedMaxRetries = computed({
+    get: () => {
+        const val = props.maxRetries ?? props['max-retries']
+        return Number.isFinite(Number(val)) && Number(val) >= 1 ? Number(val) : 3
+    },
+    set: (value: number) => {
+        const num = Math.max(1, Math.floor(Number(value) || 3))
+        emit('update:maxRetries', num)
+        emit('update:max-retries', num)
+    }
+})
 
 const isCustomEndpoint = computed(() => props.endpoint !== '' && props.endpoint !== DEFAULT_API_ENDPOINT)
 const canFetch = computed(() => props.apiKey.trim() !== '' && props.endpoint.trim() !== '')
@@ -185,6 +226,7 @@ const handleSaveAndClose = () => {
     if (props.endpoint.trim()) {
         LocalStorage.saveApiEndpoint(props.endpoint.trim())
     }
+    LocalStorage.saveMaxRetries(selectedMaxRetries.value)
     closeModal()
 }
 

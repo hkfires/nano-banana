@@ -9,6 +9,7 @@ export interface GenerateRequest {
     quality?: string
     enableGoogleSearch?: boolean
     resolution?: string
+    maxRetries?: number
 }
 
 export interface GenerateResponse {

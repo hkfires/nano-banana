@@ -1,5 +1,5 @@
 import type { ModelOption } from '../types'
-import { normalizeApiBase } from '../config/api'
+import { normalizeApiBase, DEFAULT_MAX_RETRIES } from '../config/api'
 import type { ModelFamily, ModelImageSettings } from '../config/modelCapabilities'
 import { getDefaultModelImageSettings, isSupportedModelFamily, normalizeModelImageSettings } from '../config/modelCapabilities'
 
@@ -10,6 +10,7 @@ export class LocalStorage {
     private static readonly MODEL_ID = 'nano-banana-model-id'
     private static readonly MODEL_CACHE = 'nano-banana-model-cache'
     private static readonly MODEL_IMAGE_SETTINGS = 'nano-banana-model-image-settings'
+    private static readonly MAX_RETRIES = 'nano-banana-max-retries'
 
     // 保存API密钥
     static saveApiKey(apiKey: string): void {
@@ -92,6 +93,29 @@ export class LocalStorage {
             localStorage.removeItem(this.MODEL_ID)
         } catch (error) {
             console.warn('无法清除本地存储的模型ID:', error)
+        }
+    }
+
+    // 保存最大重试次数
+    static saveMaxRetries(maxRetries: number): void {
+        try {
+            const count = Math.max(1, Math.floor(Number(maxRetries) || DEFAULT_MAX_RETRIES))
+            localStorage.setItem(this.MAX_RETRIES, String(count))
+        } catch (error) {
+            console.warn('无法保存重试次数到本地存储:', error)
+        }
+    }
+
+    // 获取最大重试次数 (默认 3)
+    static getMaxRetries(): number {
+        try {
+            const val = localStorage.getItem(this.MAX_RETRIES)
+            if (!val) return DEFAULT_MAX_RETRIES
+            const count = parseInt(val, 10)
+            return Number.isFinite(count) && count >= 1 ? count : DEFAULT_MAX_RETRIES
+        } catch (error) {
+            console.warn('无法从本地存储读取重试次数:', error)
+            return DEFAULT_MAX_RETRIES
         }
     }
 
