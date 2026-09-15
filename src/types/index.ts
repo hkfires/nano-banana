@@ -6,6 +6,7 @@ export interface GenerateRequest {
     model: string
     aspectRatio?: string
     imageSize?: string
+    quality?: string
     enableGoogleSearch?: boolean
     resolution?: string
 }
@@ -35,6 +36,10 @@ export interface ModelOption {
     label: string
     description?: string
     supportsImages: boolean
+    provider?: string
+    category?: 'featured' | 'google' | 'openai' | 'xai' | 'other-image' | 'other'
+    features?: string[]
+    parameterCategory?: string
 }
 
 export interface StyleTemplate {

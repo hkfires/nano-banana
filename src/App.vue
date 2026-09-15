@@ -365,17 +365,33 @@ const mapModelsToOptions = (models: ApiModel[]): ModelOption[] => {
         if (!model?.id || uniqueIds.has(model.id)) return
         uniqueIds.add(model.id)
 
-        const supportsImages = detectImageSupport(model)
+        const cap = getModelCapability(model.id)
+        const supportsImages = cap !== null || detectImageSupport(model)
         const label = buildModelLabel(model)
         const description = (typeof model.description === 'string' && model.description.trim()) ||
             (typeof (model as Record<string, unknown>).about === 'string' && String((model as Record<string, unknown>).about).trim()) ||
+            cap?.parameterCategory ||
             ''
+
+        let category: ModelOption['category'] = 'other'
+        if (cap) {
+            if (cap.provider === 'Google') category = 'google'
+            else if (cap.provider === 'OpenAI') category = 'openai'
+            else if (cap.provider === 'xAI') category = 'xai'
+            else category = 'other-image'
+        } else if (supportsImages) {
+            category = 'other-image'
+        }
 
         options.push({
             id: model.id,
             label,
             description,
-            supportsImages
+            supportsImages,
+            provider: cap?.provider,
+            category,
+            features: cap?.featureTags,
+            parameterCategory: cap?.parameterCategory
         })
     })
 
@@ -388,6 +404,10 @@ const mapModelsToOptions = (models: ApiModel[]): ModelOption[] => {
 }
 
 const detectImageSupport = (model: ApiModel): boolean => {
+    if (resolveModelFamily(model.id) !== 'unsupported') {
+        return true
+    }
+
     const caps = model.capabilities
     if (caps && typeof caps === 'object') {
         if ((caps as Record<string, unknown>).image === true) return true
@@ -440,13 +460,17 @@ const ensureSelectedOptionPresent = () => {
 
     const exists = modelOptions.value.some(option => option.id === currentId)
     if (!exists) {
+        const cap = getModelCapability(currentId)
         modelOptions.value = [
             ...modelOptions.value,
             {
                 id: currentId,
-                label: buildFallbackLabel(currentId),
-                description: '',
-                supportsImages: true
+                label: cap ? `${currentId} - ${cap.label}` : buildFallbackLabel(currentId),
+                description: cap?.parameterCategory || '',
+                supportsImages: true,
+                provider: cap?.provider,
+                features: cap?.featureTags,
+                parameterCategory: cap?.parameterCategory
             }
         ]
     }
@@ -548,6 +572,10 @@ const applyModelSettingsToRequest = (request: GenerateRequest) => {
 
     if (capability.supportsImageSize && settings.imageSize) {
         request.imageSize = settings.imageSize
+    }
+
+    if (capability.supportsQuality && settings.quality) {
+        request.quality = settings.quality
     }
 
     if (capability.supportsGoogleSearch) {

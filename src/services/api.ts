@@ -1,6 +1,6 @@
 import type { ApiModel, GenerateRequest, GenerateResponse, ModelListResponse } from '../types'
 import { DEFAULT_API_ENDPOINT, DEFAULT_MODEL_ID, normalizeApiBase, resolveChatCompletionsEndpoint } from '../config/api'
-import { resolveModelFamily, usesImagesApi } from '../config/modelCapabilities'
+import { getModelCapability, resolveGptImageSize, resolveModelFamily, usesImagesApi } from '../config/modelCapabilities'
 
 export async function generateImage(request: GenerateRequest, maxRetries: number = 5): Promise<GenerateResponse> {
     let lastError: Error | null = null
@@ -19,8 +19,7 @@ export async function generateImage(request: GenerateRequest, maxRetries: number
                 return response
             }
 
-            // 检查是否是 Gemini 3 Pro Image 模型
-            const isGemini3ProImage = modelId.toLowerCase().includes('gemini-3-pro-image')
+            const cap = getModelCapability(modelId)
 
             let payload: Record<string, unknown>
 
@@ -49,20 +48,18 @@ export async function generateImage(request: GenerateRequest, maxRetries: number
             }
 
             // 构建 image_config
-            const imageConfig: any = {}
+            const imageConfig: Record<string, unknown> = {}
 
             if (request.aspectRatio) {
                 imageConfig.aspect_ratio = request.aspectRatio
             }
 
-            // 如果是 Gemini 3 Pro Image 模型，添加额外参数
-            if (isGemini3ProImage) {
-                if (request.imageSize) {
-                    imageConfig.image_size = request.imageSize
-                }
-                if (request.enableGoogleSearch) {
-                    payload.tools = [{ google_search: {} }]
-                }
+            // 如果模型支持专属尺寸或搜索工具，添加到载荷
+            if (cap?.supportsImageSize && request.imageSize) {
+                imageConfig.image_size = request.imageSize
+            }
+            if (cap?.supportsGoogleSearch && request.enableGoogleSearch) {
+                payload.tools = [{ google_search: {} }]
             }
 
             // 如果有 image_config 参数，添加到 payload
@@ -181,9 +178,12 @@ async function createWithImagesApi(request: GenerateRequest, apiBase: string, mo
             payload.resolution = request.resolution
         }
     } else {
-        const size = resolveGptImage2Size(request.aspectRatio)
+        const size = resolveImageSize(request.aspectRatio, request.imageSize)
         if (size) {
             payload.size = size
+        }
+        if (request.quality) {
+            payload.quality = request.quality
         }
     }
 
@@ -204,9 +204,12 @@ async function editWithImagesApi(request: GenerateRequest, apiBase: string, mode
     formData.append('model', modelId)
     formData.append('prompt', request.prompt)
 
-    const size = resolveGptImage2Size(request.aspectRatio)
+    const size = resolveImageSize(request.aspectRatio, request.imageSize)
     if (size) {
         formData.append('size', size)
+    }
+    if (request.quality) {
+        formData.append('quality', request.quality)
     }
 
     for (const [index, image] of request.images.entries()) {
@@ -300,22 +303,11 @@ function resolveOpenAIImagesEndpoint(apiBase: string, action: 'generations' | 'e
     }
 }
 
-function resolveGptImage2Size(aspectRatio?: string): string | undefined {
-    const sizeMap: Record<string, string> = {
-        '1:1': '1024x1024',
-        '2:3': '1024x1536',
-        '3:2': '1536x1024',
-        '3:4': '896x1200',
-        '4:3': '1200x896',
-        '4:5': '896x1152',
-        '5:4': '1152x896',
-        '9:16': '768x1344',
-        '16:9': '1344x768',
-        '21:9': '1536x672'
-    }
-
-    return aspectRatio ? sizeMap[aspectRatio] : undefined
+function resolveImageSize(aspectRatio?: string, imageSize?: string): string | undefined {
+    return resolveGptImageSize(aspectRatio, imageSize)
 }
+
+export const resolveGptImage2Size = resolveImageSize
 
 export async function fetchModels(apikey: string, endpoint: string): Promise<ApiModel[]> {
     const apiBase = normalizeApiBase(endpoint) || DEFAULT_API_ENDPOINT
