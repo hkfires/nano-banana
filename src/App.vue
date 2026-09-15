@@ -116,8 +116,8 @@
                             </div>
 
                             <button
-                                v-if="activeWorkflow === 'text' && textToImagePrompt"
-                                @click="textToImagePrompt = ''"
+                                v-if="activeWorkflow === 'text' ? textToImagePrompt : customPrompt"
+                                @click="activeWorkflow === 'text' ? textToImagePrompt = '' : customPrompt = ''"
                                 class="text-xs text-slate-400 hover:text-rose-600 font-medium transition-colors"
                             >
                                 清空
@@ -149,6 +149,21 @@
 
                         <!-- 3. 图文生图模式主体 -->
                         <div v-show="activeWorkflow === 'image'" class="space-y-3">
+                            <!-- 图文生图提示词输入框 (与文生图位置保持一致，视觉对称) -->
+                            <div class="relative">
+                                <textarea
+                                    v-model="customPrompt"
+                                    placeholder="输入定向改图要求（例如：保持主体面部特征一致，背景替换为赛博朋克雨夜街道，身披机能装甲，带有微弱霓虹光影...）"
+                                    rows="3"
+                                    class="w-full px-3.5 py-3 bg-slate-50 hover:bg-slate-100/50 focus:bg-white border border-slate-200 rounded-xl resize-y min-h-[96px] focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 text-sm leading-relaxed transition-colors duration-150"
+                                    @keydown.ctrl.enter="handleGenerate"
+                                    @keydown.meta.enter="handleGenerate"
+                                />
+                                <div class="text-xs text-slate-400 text-right mt-1 font-mono">
+                                    {{ customPrompt.length }} 字符
+                                </div>
+                            </div>
+
                             <!-- 参考图上传区 -->
                             <ImageUpload v-model="selectedImages" />
 
@@ -165,7 +180,7 @@
                                     <div
                                         v-for="tpl in styleTemplates"
                                         :key="tpl.id"
-                                        @click="toggleStyleTemplate(tpl.id)"
+                                        @click="selectStyleTemplate(tpl.id)"
                                         :class="[
                                             'p-2.5 rounded-xl border text-left cursor-pointer transition-all flex flex-col justify-between shadow-2xs',
                                             selectedStyle === tpl.id
@@ -204,19 +219,12 @@
                                     </div>
                                 </div>
                             </div>
-
-                            <!-- 自定义改图描述 -->
-                            <div class="relative">
-                                <textarea
-                                    v-model="customPrompt"
-                                    placeholder="输入定向改图要求（例如：保持主体面部特征一致，背景替换为赛博朋克雨夜街道，身披机能装甲，带有微弱霓虹光影...）"
-                                    rows="2"
-                                    class="w-full px-3 py-2 bg-slate-50 hover:bg-slate-100/50 focus:bg-white border border-slate-200 rounded-xl resize-y min-h-[72px] focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 text-sm leading-relaxed transition-colors duration-150"
-                                    @keydown.ctrl.enter="handleGenerate"
-                                    @keydown.meta.enter="handleGenerate"
-                                />
-                            </div>
                         </div>
+
+                        <p v-if="gptOutputSize" class="mt-3 text-xs text-slate-500">
+                            请求尺寸：{{ gptOutputSize.size }}
+                            <span v-if="gptOutputSize.experimental"> · 实验性分辨率，输出可能存在差异</span>
+                        </p>
 
                         <!-- 4. 底部内嵌控制栏（比例 / 参数 / 主生成按钮） -->
                         <div class="mt-4 pt-3.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2.5">
@@ -244,7 +252,7 @@
                                     <select
                                         :value="currentModelSettings.imageSize"
                                         @change="handleImageSizeChange(($event.target as HTMLSelectElement).value)"
-                                        class="pl-2 pr-5 py-1 bg-slate-100 hover:bg-slate-200/70 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 appearance-none cursor-pointer focus:outline-none transition-colors"
+                                        class="block h-6 pl-2 pr-5 py-0 bg-slate-100 hover:bg-slate-200/70 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 appearance-none cursor-pointer focus:outline-none transition-colors"
                                     >
                                         <option v-for="opt in currentModelCapability.imageSizeOptions || []" :key="opt.value" :value="opt.value">
                                             {{ opt.label }}
@@ -260,7 +268,7 @@
                                     <select
                                         :value="currentModelSettings.quality"
                                         @change="handleQualityChange(($event.target as HTMLSelectElement).value)"
-                                        class="pl-2 pr-5 py-1 bg-slate-100 hover:bg-slate-200/70 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 appearance-none cursor-pointer focus:outline-none transition-colors"
+                                        class="block h-6 pl-2 pr-5 py-0 bg-slate-100 hover:bg-slate-200/70 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 appearance-none cursor-pointer focus:outline-none transition-colors"
                                     >
                                         <option v-for="opt in currentModelCapability.qualityOptions || []" :key="opt.value" :value="opt.value">
                                             {{ opt.label }}
@@ -276,7 +284,7 @@
                                     <select
                                         :value="currentModelSettings.resolution"
                                         @change="handleResolutionChange(($event.target as HTMLSelectElement).value)"
-                                        class="pl-2 pr-5 py-1 bg-slate-100 hover:bg-slate-200/70 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 appearance-none cursor-pointer focus:outline-none transition-colors"
+                                        class="block h-6 pl-2 pr-5 py-0 bg-slate-100 hover:bg-slate-200/70 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 appearance-none cursor-pointer focus:outline-none transition-colors"
                                     >
                                         <option v-for="opt in currentModelCapability.resolutionOptions || []" :key="opt.value" :value="opt.value">
                                             {{ opt.label }}
@@ -406,11 +414,11 @@ import ResultDisplay from './components/ResultDisplay.vue'
 import ApiKeyModal from './components/ApiKeyModal.vue'
 import Footer from './components/Footer.vue'
 import { fetchModels, generateImage } from './services/api'
-import { styleTemplates, presetPrompts } from './data/templates'
+import { styleTemplates } from './data/templates'
 import { LocalStorage } from './utils/storage'
-import type { ApiModel, GenerateRequest, ModelOption, HistoryRecord } from './types'
+import type { GenerateRequest, ModelOption, HistoryRecord } from './types'
 import { DEFAULT_API_ENDPOINT, DEFAULT_MODEL_ID, normalizeApiBase } from './config/api'
-import { getModelCapability, normalizeModelImageSettings, resolveModelFamily } from './config/modelCapabilities'
+import { getModelCapability, normalizeModelImageSettings, resolveModelFamily, resolveGptImageSize } from './config/modelCapabilities'
 import { filterAndProcessRemoteModels, isImageModel } from './config/imageModels'
 import type { ModelFamily, ModelImageSettings as ModelImageSettingsType } from './config/modelCapabilities'
 
@@ -439,8 +447,8 @@ const isTextToImageLoading = ref(false)
 
 // 图生图
 const selectedImages = ref<string[]>([])
-const selectedStyle = ref('')
 const customPrompt = ref('')
+const selectedStyle = computed(() => styleTemplates.find(template => template.prompt === customPrompt.value)?.id || '')
 const result = ref<string[]>([])
 const error = ref<string | null>(null)
 const isLoading = ref(false)
@@ -448,6 +456,15 @@ const isLoading = ref(false)
 const latestResultSource = ref<'text' | 'image' | null>(null)
 const activeResultPrompt = ref('')
 const generationHistory = ref<HistoryRecord[]>([])
+
+const gptOutputSize = computed(() => {
+    const family = currentModelCapability.value?.family
+    if (family !== 'gpt-image-2' && family !== 'gpt-image-2.5') return null
+    const size = resolveGptImageSize(currentModelSettings.value.aspectRatio, currentModelSettings.value.imageSize)
+    if (!size) return null
+    const [width, height] = size.split('x').map(Number)
+    return { size, experimental: width * height > 3686400 }
+})
 
 const commonAspectRatios = [
     { ratio: '1:1', label: '方形' },
@@ -652,14 +669,9 @@ const handlePresetAppend = (prompt: string) => {
     }
 }
 
-const applyRandomPrompt = () => {
-    if (!presetPrompts.length) return
-    const randomIndex = Math.floor(Math.random() * presetPrompts.length)
-    textToImagePrompt.value = presetPrompts[randomIndex].prompt
-}
-
-const toggleStyleTemplate = (id: string) => {
-    selectedStyle.value = selectedStyle.value === id ? '' : id
+const selectStyleTemplate = (id: string) => {
+    const template = styleTemplates.find(template => template.id === id)
+    if (template) customPrompt.value = template.prompt
 }
 
 const selectedStyleTitle = computed(() => {
@@ -709,7 +721,7 @@ const canGenerate = computed(
         apiEndpoint.value.trim() !== '' &&
         isModelValid.value &&
         selectedImages.value.length > 0 &&
-        (selectedStyle.value !== '' || customPrompt.value.trim() !== '') &&
+        customPrompt.value.trim() !== '' &&
         !isLoading.value
 )
 
@@ -721,7 +733,7 @@ const validationTip = computed(() => {
         if (!textToImagePrompt.value.trim()) return '请输入画面描述或点选上方灵感'
     } else {
         if (selectedImages.value.length === 0) return '请先上传至少一张参考原图'
-        if (!selectedStyle.value && !customPrompt.value.trim()) return '请选择预设风格或填写改图要求'
+        if (!customPrompt.value.trim()) return '请选择预设风格或填写改图要求'
     }
     return null
 })
@@ -852,9 +864,7 @@ const handleGenerate = async () => {
     result.value = []
 
     try {
-        const prompt = selectedStyle.value
-            ? styleTemplates.find(t => t.id === selectedStyle.value)?.prompt || customPrompt.value
-            : customPrompt.value
+        const prompt = customPrompt.value
 
         activeResultPrompt.value = prompt
 

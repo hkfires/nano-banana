@@ -241,7 +241,7 @@ const props = defineProps<{
     history?: HistoryRecord[]
 }>()
 
-const emit = defineEmits<{
+defineEmits<{
     download: [image: string]
     push: [image: string]
     retry: []

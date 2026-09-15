@@ -1,10 +1,12 @@
 export type ModelFamily =
     | 'gemini-25-flash-image'
     | 'gemini-3-pro-image'
+    | 'gemini-31-flash-image'
     | 'gpt-image-2'
     | 'gpt-image-2.5'
     | 'grok-imagine-image'
     | 'grok-imagine-image-quality'
+    | 'grok-imagine-image-2.0'
     | 'unsupported'
 
 export type SupportedModelFamily = Exclude<ModelFamily, 'unsupported'>
@@ -22,15 +24,11 @@ export interface ModelCapability {
     label: string
     provider: ModelProvider
     apiProtocol: ApiProtocol
-    categoryLabel: string
-    parameterCategory: string
-    featureTags: string[]
     supportsAspectRatio: boolean
     supportsImageSize: boolean
     supportsQuality?: boolean
     supportsGoogleSearch: boolean
     supportsResolution: boolean
-    aspectRatioParam: 'aspect_ratio' | 'size' | null
     resolutionOptions?: Array<{ value: string; label: string }>
     imageSizeOptions?: Array<{ value: string; label: string }>
     qualityOptions?: Array<{ value: string; label: string }>
@@ -63,37 +61,37 @@ export const gptImageData: Record<string, Record<string, { width: number; height
         '1:1': { width: 1024, height: 1024 },
         '2:3': { width: 1024, height: 1536 },
         '3:2': { width: 1536, height: 1024 },
-        '3:4': { width: 896, height: 1200 },
-        '4:3': { width: 1200, height: 896 },
-        '4:5': { width: 896, height: 1152 },
-        '5:4': { width: 1152, height: 896 },
-        '9:16': { width: 768, height: 1344 },
-        '16:9': { width: 1344, height: 768 },
-        '21:9': { width: 1536, height: 672 }
+        '3:4': { width: 864, height: 1152 },
+        '4:3': { width: 1152, height: 864 },
+        '4:5': { width: 896, height: 1120 },
+        '5:4': { width: 1120, height: 896 },
+        '9:16': { width: 864, height: 1536 },
+        '16:9': { width: 1536, height: 864 },
+        '21:9': { width: 1792, height: 768 }
     },
     '2K': {
         '1:1': { width: 2048, height: 2048 },
         '2:3': { width: 1664, height: 2496 },
         '3:2': { width: 2496, height: 1664 },
-        '3:4': { width: 1792, height: 2400 },
-        '4:3': { width: 2400, height: 1792 },
-        '4:5': { width: 1856, height: 2304 },
-        '5:4': { width: 2304, height: 1856 },
+        '3:4': { width: 1536, height: 2048 },
+        '4:3': { width: 2048, height: 1536 },
+        '4:5': { width: 1792, height: 2240 },
+        '5:4': { width: 2240, height: 1792 },
         '9:16': { width: 1440, height: 2560 },
         '16:9': { width: 2560, height: 1440 },
         '21:9': { width: 2688, height: 1152 }
     },
     '4K': {
-        '1:1': { width: 3840, height: 3840 },
-        '2:3': { width: 2560, height: 3840 },
-        '3:2': { width: 3840, height: 2560 },
-        '3:4': { width: 2880, height: 3840 },
-        '4:3': { width: 3840, height: 2880 },
-        '4:5': { width: 3072, height: 3840 },
-        '5:4': { width: 3840, height: 3072 },
+        '1:1': { width: 2880, height: 2880 },
+        '2:3': { width: 2336, height: 3504 },
+        '3:2': { width: 3504, height: 2336 },
+        '3:4': { width: 2448, height: 3264 },
+        '4:3': { width: 3264, height: 2448 },
+        '4:5': { width: 2560, height: 3200 },
+        '5:4': { width: 3200, height: 2560 },
         '9:16': { width: 2160, height: 3840 },
         '16:9': { width: 3840, height: 2160 },
-        '21:9': { width: 3840, height: 1648 }
+        '21:9': { width: 3808, height: 1632 }
     }
 }
 
@@ -110,11 +108,15 @@ const grokAspectRatios: AspectRatioOption[] = [
     { value: '3:2', label: '3:2 - 横版' },
     { value: '3:4', label: '3:4 - 竖版' },
     { value: '4:3', label: '4:3 - 横版' },
-    { value: '4:5', label: '4:5 - 竖版' },
-    { value: '5:4', label: '5:4 - 横版' },
+    { value: '2:1', label: '2:1' },
+    { value: '1:2', label: '1:2' },
+    { value: '19.5:9', label: '19.5:9' },
+    { value: '9:19.5', label: '9:19.5' },
+    { value: '20:9', label: '20:9' },
+    { value: '9:20', label: '9:20' },
     { value: '9:16', label: '9:16 - 手机竖屏' },
     { value: '16:9', label: '16:9 - 宽屏' },
-    { value: '21:9', label: '21:9 - 超宽屏' }
+    { value: 'auto', label: '自动比例' }
 ]
 
 const gemini3ProImageData: Record<string, Record<string, { width: number; height: number }>> = {
@@ -162,32 +164,54 @@ const capabilities: Record<Exclude<ModelFamily, 'unsupported'>, ModelCapability>
         label: 'Gemini Flash Image',
         provider: 'Google',
         apiProtocol: 'chat-completions',
-        categoryLabel: 'Google Gemini 系列',
-        parameterCategory: '动态宽高比 (Aspect Ratio)',
-        featureTags: ['10种宽高比', '极速生成'],
         supportsAspectRatio: true,
         supportsImageSize: false,
         supportsGoogleSearch: false,
-        supportsResolution: false,
-        aspectRatioParam: 'aspect_ratio'
+        supportsResolution: false
     },
     'gemini-3-pro-image': {
         family: 'gemini-3-pro-image',
         label: 'Gemini Pro Image',
         provider: 'Google',
         apiProtocol: 'chat-completions',
-        categoryLabel: 'Google Gemini 系列',
-        parameterCategory: '多档超清尺寸 (1K/2K/4K) · 宽高比联动 · 谷歌搜索增强',
-        featureTags: ['4K超清画质', '谷歌搜索增强', '尺寸联动'],
         supportsAspectRatio: true,
         supportsImageSize: true,
         supportsGoogleSearch: true,
         supportsResolution: false,
-        aspectRatioParam: 'aspect_ratio',
         imageSizeOptions: [
             { value: '1K', label: '1K 标准' },
             { value: '2K', label: '2K 高清' },
             { value: '4K', label: '4K 超清' }
+        ]
+    },
+    'gemini-31-flash-image': {
+        family: 'gemini-31-flash-image',
+        label: 'Gemini 3.1 Flash Image',
+        provider: 'Google',
+        apiProtocol: 'chat-completions',
+        supportsAspectRatio: true,
+        supportsImageSize: true,
+        supportsGoogleSearch: true,
+        supportsResolution: false,
+        imageSizeOptions: [
+            { value: '512', label: '512 像素' },
+            { value: '1K', label: '1K 标准' },
+            { value: '2K', label: '2K 高清' },
+            { value: '4K', label: '4K 超清' }
+        ]
+    },
+    'grok-imagine-image-2.0': {
+        family: 'grok-imagine-image-2.0',
+        label: 'Grok Imagine Image 2.0',
+        provider: 'xAI',
+        apiProtocol: 'images-api',
+        supportsAspectRatio: true,
+        supportsImageSize: false,
+        supportsGoogleSearch: false,
+        supportsResolution: true,
+        resolutionOptions: [
+            { value: '1k', label: '1K 分辨率' },
+            { value: '2k', label: '2K 分辨率' }
         ]
     },
     'gpt-image-2': {
@@ -195,15 +219,11 @@ const capabilities: Record<Exclude<ModelFamily, 'unsupported'>, ModelCapability>
         label: 'GPT Image 2',
         provider: 'OpenAI',
         apiProtocol: 'images-api',
-        categoryLabel: 'OpenAI 图像接口',
-        parameterCategory: '多档清晰度 (1K/2K/4K) · 像素尺寸映射 · 渲染质量 (Quality) · 多图编辑',
-        featureTags: ['1K/2K/4K清晰度', '10种尺寸比例', '质量调节(high/med/low)', '支持图文生图'],
         supportsAspectRatio: true,
         supportsImageSize: true,
         supportsQuality: true,
         supportsGoogleSearch: false,
         supportsResolution: false,
-        aspectRatioParam: 'size',
         imageSizeOptions: [
             { value: '1K', label: '1K 标准' },
             { value: '2K', label: '2K 高清' },
@@ -220,15 +240,11 @@ const capabilities: Record<Exclude<ModelFamily, 'unsupported'>, ModelCapability>
         label: 'GPT Image 2.5',
         provider: 'OpenAI',
         apiProtocol: 'images-api',
-        categoryLabel: 'OpenAI 图像接口',
-        parameterCategory: '多档清晰度 (1K/2K/4K) · 像素尺寸映射 · 渲染质量 (Quality) · 多图编辑',
-        featureTags: ['1K/2K/4K清晰度', '10种尺寸比例', '质量调节(high/med/low)', '新一代画质', '支持图文生图'],
         supportsAspectRatio: true,
         supportsImageSize: true,
         supportsQuality: true,
         supportsGoogleSearch: false,
         supportsResolution: false,
-        aspectRatioParam: 'size',
         imageSizeOptions: [
             { value: '1K', label: '1K 标准' },
             { value: '2K', label: '2K 高清' },
@@ -245,28 +261,20 @@ const capabilities: Record<Exclude<ModelFamily, 'unsupported'>, ModelCapability>
         label: 'Grok Imagine Image',
         provider: 'xAI',
         apiProtocol: 'images-api',
-        categoryLabel: 'xAI Grok 系列',
-        parameterCategory: '动态宽高比 (Aspect Ratio)',
-        featureTags: ['10种宽高比', '极速生成'],
         supportsAspectRatio: true,
         supportsImageSize: false,
         supportsGoogleSearch: false,
-        supportsResolution: false,
-        aspectRatioParam: 'aspect_ratio'
+        supportsResolution: false
     },
     'grok-imagine-image-quality': {
         family: 'grok-imagine-image-quality',
         label: 'Grok Imagine Image Quality',
         provider: 'xAI',
         apiProtocol: 'images-api',
-        categoryLabel: 'xAI Grok 系列',
-        parameterCategory: '动态宽高比 (Aspect Ratio) · 输出质量档位 (1k/2k)',
-        featureTags: ['1k/2k质量档位', '10种宽高比'],
         supportsAspectRatio: true,
         supportsImageSize: false,
         supportsGoogleSearch: false,
         supportsResolution: true,
-        aspectRatioParam: 'aspect_ratio',
         resolutionOptions: [
             { value: '1k', label: '1k 质量' },
             { value: '2k', label: '2k 质量' }
@@ -289,6 +297,7 @@ export function resolveModelFamily(modelId: string): ModelFamily {
     if (modelName === 'gpt-image-2' || modelName.startsWith('gpt-image-2') || normalized.includes('gpt-image-2')) {
         return 'gpt-image-2'
     }
+    if (/^grok-imagine-image-2\.0(?:-|$)/.test(modelName)) return 'grok-imagine-image-2.0'
     if (modelName === 'grok-imagine-image-quality' || normalized.includes('grok-imagine-image-quality')) {
         return 'grok-imagine-image-quality'
     }
@@ -296,12 +305,9 @@ export function resolveModelFamily(modelId: string): ModelFamily {
         return 'grok-imagine-image'
     }
     // 智能匹配 Google Gemini 系列生图模型（支持 2.5 / 3.0 / 3.1 等跨版本）
-    if (normalized.includes('gemini') && normalized.includes('image')) {
-        if (normalized.includes('pro')) {
-            return 'gemini-3-pro-image'
-        }
-        return 'gemini-25-flash-image'
-    }
+    if (/^gemini-3\.1-flash-image(?:-|$)/.test(modelName)) return 'gemini-31-flash-image'
+    if (/^gemini-3(?:\.1)?-pro-image(?:-|$)/.test(modelName)) return 'gemini-3-pro-image'
+    if (/^gemini-2\.5-flash-image(?:-|:|$)/.test(modelName)) return 'gemini-25-flash-image'
 
     return 'unsupported'
 }
@@ -317,6 +323,11 @@ export function getDefaultModelImageSettings(family: SupportedModelFamily): Mode
         aspectRatio: '1:1'
     }
 
+    if (family === 'gemini-31-flash-image') {
+        defaults.imageSize = '1K'
+        defaults.enableGoogleSearch = false
+    }
+
     if (family === 'gemini-3-pro-image') {
         defaults.imageSize = '2K'
         defaults.enableGoogleSearch = false
@@ -327,7 +338,7 @@ export function getDefaultModelImageSettings(family: SupportedModelFamily): Mode
         defaults.quality = 'high'
     }
 
-    if (family === 'grok-imagine-image-quality') {
+    if (family === 'grok-imagine-image-quality' || family === 'grok-imagine-image-2.0') {
         defaults.resolution = '2k'
     }
 
@@ -351,6 +362,12 @@ export function getAspectRatioOptions(family: SupportedModelFamily, imageSize?: 
             resolution: `${dimensions.width}x${dimensions.height}`
         }))
     }
+    if (family === 'gemini-31-flash-image') {
+        return [...Object.keys(gemini3ProImageData['1K']), '1:4', '4:1', '1:8', '8:1'].map(value => ({ value, label: value }))
+    }
+    if (family === 'grok-imagine-image-2.0') {
+        return [...grokAspectRatios, { value: '21:9', label: '21:9' }, { value: '5:2', label: '5:2' }]
+    }
     if (family === 'grok-imagine-image' || family === 'grok-imagine-image-quality') return grokAspectRatios
     return gemini25AspectRatios
 }
@@ -364,6 +381,18 @@ export function normalizeModelImageSettings(
         ...defaults,
         ...settings,
         aspectRatio: settings?.aspectRatio || defaults.aspectRatio
+    }
+
+    const capability = capabilities[family]
+    for (const [key, options] of [
+        ['imageSize', capability.imageSizeOptions],
+        ['quality', capability.qualityOptions],
+        ['resolution', capability.resolutionOptions]
+    ] as const) {
+        if (!options?.length) delete merged[key]
+        else if (!options.some(option => option.value === merged[key])) {
+            merged[key] = defaults[key] || options[0].value
+        }
     }
 
     const options = getAspectRatioOptions(family, merged.imageSize)

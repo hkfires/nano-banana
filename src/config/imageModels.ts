@@ -71,7 +71,6 @@ export function filterAndProcessRemoteModels(rawModels: ApiModel[]): ModelOption
 
         const description =
             (typeof model.description === 'string' && model.description.trim()) ||
-            cap?.parameterCategory ||
             ''
 
         let provider = cap?.provider || 'Other'
@@ -93,9 +92,7 @@ export function filterAndProcessRemoteModels(rawModels: ApiModel[]): ModelOption
             description,
             supportsImages: true,
             provider,
-            category,
-            features: cap?.featureTags,
-            parameterCategory: cap?.parameterCategory
+            category
         })
     })
 

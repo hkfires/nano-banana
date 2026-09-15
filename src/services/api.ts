@@ -1,6 +1,6 @@
 import type { ApiModel, GenerateRequest, GenerateResponse, ModelListResponse } from '../types'
 import { DEFAULT_API_ENDPOINT, DEFAULT_MODEL_ID, normalizeApiBase, resolveChatCompletionsEndpoint } from '../config/api'
-import { getModelCapability, resolveGptImageSize, resolveModelFamily, usesImagesApi } from '../config/modelCapabilities'
+import { getModelCapability, resolveGptImageSize, usesImagesApi } from '../config/modelCapabilities'
 
 export async function generateImage(request: GenerateRequest, maxRetries: number = 5): Promise<GenerateResponse> {
     let lastError: Error | null = null
@@ -169,12 +169,11 @@ async function createWithImagesApi(request: GenerateRequest, apiBase: string, mo
         prompt: request.prompt
     }
 
-    const family = resolveModelFamily(modelId)
-    if (family === 'grok-imagine-image' || family === 'grok-imagine-image-quality') {
+    if (getModelCapability(modelId)?.provider === 'xAI') {
         if (request.aspectRatio) {
             payload.aspect_ratio = request.aspectRatio
         }
-        if (family === 'grok-imagine-image-quality' && request.resolution) {
+        if (getModelCapability(modelId)?.supportsResolution && request.resolution) {
             payload.resolution = request.resolution
         }
     } else {
@@ -200,6 +199,25 @@ async function createWithImagesApi(request: GenerateRequest, apiBase: string, mo
 }
 
 async function editWithImagesApi(request: GenerateRequest, apiBase: string, modelId: string): Promise<string[]> {
+    const capability = getModelCapability(modelId)
+    if (capability?.provider === 'xAI') {
+        const payload: Record<string, unknown> = { model: modelId, prompt: request.prompt }
+        const images = request.images.map(url => ({ type: 'image_url', url }))
+        if (images.length === 1) payload.image = images[0]
+        else payload.images = images
+        if (request.aspectRatio) payload.aspect_ratio = request.aspectRatio
+        if (capability.supportsResolution && request.resolution) payload.resolution = request.resolution
+        const response = await fetch(resolveOpenAIImagesEndpoint(apiBase, 'edits'), {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${request.apikey}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        })
+        return parseOpenAIImageResponse(await readJsonResponse(response))
+    }
+
     const formData = new FormData()
     formData.append('model', modelId)
     formData.append('prompt', request.prompt)

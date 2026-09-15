@@ -38,8 +38,6 @@ export interface ModelOption {
     supportsImages: boolean
     provider?: string
     category?: 'featured' | 'google' | 'openai' | 'xai' | 'other-image' | 'other'
-    features?: string[]
-    parameterCategory?: string
 }
 
 export interface StyleTemplate {
