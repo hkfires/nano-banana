@@ -221,10 +221,11 @@
                             </div>
                         </div>
 
-                        <p v-if="gptOutputSize" class="mt-3 text-xs text-slate-500">
-                            请求尺寸：{{ gptOutputSize.size }}
-                            <span v-if="gptOutputSize.experimental"> · 实验性分辨率，输出可能存在差异</span>
-                        </p>
+                        <!-- Codex 反代渠道参数不生效客观提示 -->
+                        <div v-if="showCodexProxyHint" class="mt-2.5 px-3 py-1.5 bg-amber-50/70 border border-amber-200/60 rounded-xl text-xs text-amber-800 flex items-center gap-1.5">
+                            <span>💡</span>
+                            <span>提示：若当前模型来自 Codex 反代渠道，尺寸、分辨率与质量参数均不会生效。</span>
+                        </div>
 
                         <!-- 4. 底部内嵌控制栏（比例 / 参数 / 主生成按钮） -->
                         <div class="mt-4 pt-3.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2.5">
@@ -418,7 +419,7 @@ import { styleTemplates } from './data/templates'
 import { LocalStorage } from './utils/storage'
 import type { GenerateRequest, ModelOption, HistoryRecord } from './types'
 import { DEFAULT_API_ENDPOINT, DEFAULT_MODEL_ID, normalizeApiBase } from './config/api'
-import { getModelCapability, normalizeModelImageSettings, resolveModelFamily, resolveGptImageSize } from './config/modelCapabilities'
+import { getModelCapability, normalizeModelImageSettings, resolveModelFamily } from './config/modelCapabilities'
 import { filterAndProcessRemoteModels, isImageModel } from './config/imageModels'
 import type { ModelFamily, ModelImageSettings as ModelImageSettingsType } from './config/modelCapabilities'
 
@@ -457,13 +458,9 @@ const latestResultSource = ref<'text' | 'image' | null>(null)
 const activeResultPrompt = ref('')
 const generationHistory = ref<HistoryRecord[]>([])
 
-const gptOutputSize = computed(() => {
+const showCodexProxyHint = computed(() => {
     const family = currentModelCapability.value?.family
-    if (family !== 'gpt-image-2' && family !== 'gpt-image-2.5') return null
-    const size = resolveGptImageSize(currentModelSettings.value.aspectRatio, currentModelSettings.value.imageSize)
-    if (!size) return null
-    const [width, height] = size.split('x').map(Number)
-    return { size, experimental: width * height > 3686400 }
+    return family === 'gpt-image-2' || family === 'gpt-image-2.5'
 })
 
 const commonAspectRatios = [
