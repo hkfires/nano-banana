@@ -1,250 +1,505 @@
 <template>
-    <div class="min-h-screen bg-gradient-to-br from-yellow-200 via-yellow-300 to-orange-200 text-gray-900 relative overflow-hidden">
-        <!-- 香蕉装饰元素 -->
-        <div class="absolute top-10 left-10 text-6xl opacity-20 animate-bounce">🍌</div>
-        <div class="absolute top-32 right-20 text-4xl opacity-30 animate-pulse">🍌</div>
-        <div class="absolute bottom-20 left-32 text-5xl opacity-25 animate-bounce delay-1000">🍌</div>
-        <div class="absolute bottom-40 right-10 text-3xl opacity-20 animate-pulse delay-500">🍌</div>
-
-        <div class="container mx-auto px-3 py-4 relative z-10">
-            <!-- Header -->
-            <div class="relative mb-6">
-                <div class="bg-gradient-to-r from-orange-400 to-yellow-500 rounded-lg p-6 border-4 border-black shadow-lg">
-                    <div class="text-center">
-                        <h1 class="text-4xl font-black text-white mb-1 flex items-center justify-center gap-2">
-                            🍌 Nano<br />
-                            <span class="text-yellow-100 text-5xl">Banana</span>
-                        </h1>
-                        <p class="text-white text-base font-medium">上传你的图片，我来创造艺术！</p>
+    <div class="min-h-screen bg-slate-50/70 text-slate-800 font-sans selection:bg-amber-100 selection:text-amber-900 pb-12">
+        <!-- 顶栏：紧凑、精致、毛玻璃 -->
+        <header class="sticky top-0 z-30 bg-white/85 backdrop-blur-md border-b border-slate-200/80">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
+                <!-- 品牌 Logo -->
+                <div class="flex items-center gap-2.5 flex-shrink-0">
+                    <div class="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-lg border border-amber-200/50 shadow-xs">
+                        🍌
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="font-bold text-slate-900 text-base tracking-tight">NanoBanana</span>
+                        <span class="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.2 rounded font-mono hidden sm:inline">
+                            Studio
+                        </span>
                     </div>
                 </div>
-            </div>
 
-            <!-- API设置区域 -->
-            <div class="mb-6">
-                <div class="flex justify-center">
-                    <button
-                        @click="showApiSettings = !showApiSettings"
-                        :class="[
-                            'px-6 py-3 rounded-lg border-4 border-black font-bold text-sm transition-all flex items-center gap-2 shadow-lg',
-                            apiKey ? 'bg-green-400 text-white hover:bg-green-500' : 'bg-red-400 text-white hover:bg-red-500 animate-pulse'
-                        ]"
-                    >
-                        <span>🔑</span>
-                        <span v-if="!apiKey">需要配置API密钥</span>
-                        <span v-else>API密钥已配置</span>
-                        <svg :class="['w-4 h-4 transition-transform', showApiSettings ? 'rotate-180' : '']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                        </svg>
-                    </button>
-                </div>
-
-                <!-- API设置折叠面板 -->
-                <div v-if="showApiSettings" class="mt-4 max-w-2xl mx-auto">
-                    <ApiKeyInput
-                        v-model="apiKey"
-                        v-model:endpoint="apiEndpoint"
+                <!-- 顶栏中间：端点图像模型选择器 (仅展示获取到的图像模型) -->
+                <div class="flex-1 max-w-xl mx-2 hidden md:block">
+                    <ModelSelector
                         v-model:model="selectedModel"
                         :models="modelOptions"
                         :model-loading="isFetchingModels"
                         :model-error="modelsError"
+                        :has-api-key="Boolean(apiKey.trim())"
+                        :can-fetch-models="Boolean(apiKey.trim() && apiEndpoint.trim())"
                         @fetch-models="handleFetchModels"
-                        @model-picked="handleModelPicked"
-                    />
-                </div>
-            </div>
-
-            <!-- 功能布局 -->
-            <div class="grid lg:grid-cols-2 gap-4 lg:gap-6 mb-6 lg:items-start">
-                <!-- 灵感工坊 -->
-                <div class="flex flex-col h-full gap-4">
-                    <div class="flex flex-col h-full">
-                        <div class="bg-gradient-to-r from-blue-400 to-purple-500 text-white font-bold px-4 py-2 rounded-t-lg border-4 border-black border-b-0 flex items-center gap-2">
-                            ✨ 文生图 · 灵感工坊
-                        </div>
-                        <div class="bg-white border-4 border-black border-t-0 rounded-b-lg p-5 shadow-lg flex flex-col h-full gap-4">
-                            <div class="flex flex-col gap-3 flex-1">
-                                <label class="font-bold flex items-center gap-2 text-base">🍌 输入你的创意描述：</label>
-                                <textarea
-                                    v-model="textToImagePrompt"
-                                    placeholder="例如：阳光洒在香蕉形热气球上，漂浮在糖果色的天空中"
-                                    class="w-full px-4 py-3 border-2 border-black rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent min-h-[160px] flex-1"
-                                />
-                            </div>
-
-                            <p class="text-sm text-gray-600 font-medium flex items-center gap-2">
-                                <span>💡</span>
-                                <span>填写描述后，使用下方按钮开始创作，生成的图片会展示在下方结果区，可直接下载或继续改图。</span>
-                            </p>
-                        </div>
-                    </div>
-
-                    <ModelImageSettings
-                        :model-id="selectedModel"
-                        :settings="currentModelSettings"
-                        @update:settings="handleModelSettingsUpdate"
                     />
                 </div>
 
-                <!-- 图文生图流程 -->
-                <div class="flex flex-col gap-4 h-full">
-                    <div class="flex flex-col h-full">
-                        <div class="bg-pink-400 text-white font-bold px-4 py-2 rounded-t-lg border-4 border-black border-b-0 flex items-center gap-2">🍌 图文生图 · 上传图片</div>
-                        <div class="flex-1">
-                            <ImageUpload v-model="selectedImages" />
-                        </div>
-                    </div>
+                <!-- 顶栏右侧：API 状态配置 & GitHub -->
+                <div class="flex items-center gap-2 flex-shrink-0">
+                    <button
+                        @click="showApiModal = true"
+                        :class="[
+                            'px-3 py-1.5 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 border',
+                            apiKey
+                                ? 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+                                : 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-200 animate-pulse'
+                        ]"
+                    >
+                        <span class="w-1.5 h-1.5 rounded-full" :class="apiKey ? 'bg-emerald-500' : 'bg-rose-500'" />
+                        <span class="hidden sm:inline">{{ apiKey ? 'API 已连接' : '配置 API 密钥' }}</span>
+                        <span class="sm:hidden">{{ apiKey ? 'API' : '配置' }}</span>
+                    </button>
 
-                    <div class="flex flex-col h-full">
-                        <div class="bg-gradient-to-r from-green-400 to-blue-500 text-white font-bold px-4 py-2 rounded-t-lg border-4 border-black border-b-0 flex items-center gap-2">
-                            🎨 图文生图 · 选择风格或自定义提示词
-                        </div>
-                        <div class="flex-1">
-                            <StylePromptSelector v-model:selectedStyle="selectedStyle" v-model:customPrompt="customPrompt" :templates="styleTemplates" />
-                        </div>
-                    </div>
+                    <a
+                        href="https://github.com/hkfires/nano-banana"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="w-8 h-8 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-500 hover:text-slate-800 transition-colors"
+                        title="GitHub 仓库"
+                    >
+                        <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+                        </svg>
+                    </a>
                 </div>
             </div>
 
-            <!-- 生成按钮 -->
-            <div class="mb-6">
-                <div class="flex flex-col gap-4 lg:flex-row lg:gap-6">
-                    <button
-                        @click="handleTextToImageGenerate"
-                        :disabled="!canGenerateTextImage"
-                        :class="[
-                            'flex-1 px-6 py-4 rounded-lg font-bold text-white text-lg transition-all duration-200 flex items-center justify-center gap-3 border-4 border-black shadow-lg',
-                            canGenerateTextImage
-                                ? 'bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 hover:-translate-y-1 hover:shadow-xl'
-                                : 'bg-gray-400 cursor-not-allowed'
-                        ]"
-                    >
-                        <span v-if="!isTextToImageLoading" class="flex items-center gap-2 text-xl">🍌 施展魔法（文生图）</span>
-                        <span v-else class="flex items-center gap-2 text-xl">🍌 正在施法...</span>
-                        <div v-if="isTextToImageLoading" class="w-8 h-8 border-3 border-white/30 border-t-white rounded-full animate-spin" />
-                    </button>
-                    <button
-                        @click="handleGenerate"
-                        :disabled="!canGenerate"
-                        :class="[
-                            'flex-1 px-6 py-4 rounded-lg font-bold text-white text-lg transition-all duration-200 flex items-center justify-center gap-3 border-4 border-black shadow-lg',
-                            canGenerate
-                                ? 'bg-gradient-to-r from-orange-400 to-yellow-500 hover:from-orange-500 hover:to-yellow-600 hover:-translate-y-1 hover:shadow-xl'
-                                : 'bg-gray-400 cursor-not-allowed'
-                        ]"
-                    >
-                        <span v-if="!isLoading" class="flex items-center gap-2 text-xl">🍌 施展魔法（图文生图）</span>
-                        <span v-else class="flex items-center gap-2 text-xl">🍌 正在施法...</span>
-                        <div v-if="isLoading" class="w-8 h-8 border-3 border-white/30 border-t-white rounded-full animate-spin" />
-                    </button>
-                </div>
-            </div>
-
-            <!-- 生成结果区域：全宽 -->
-            <div class="w-full">
-                <div class="bg-black text-white font-bold px-4 py-2 rounded-t-lg border-4 border-black border-b-0 flex items-center gap-2">✨ 生成结果</div>
-                <ResultDisplay
-                    :results="displayResults"
-                    :loading="displayLoading"
-                    :error="displayError"
-                    :can-push="canPushDisplayResult"
-                    @download="handleDownloadResult"
-                    @push="handlePushDisplayResult"
+            <!-- 移动端顶部模型栏 -->
+            <div class="px-4 py-2 border-t border-slate-100 bg-white md:hidden">
+                <ModelSelector
+                    v-model:model="selectedModel"
+                    :models="modelOptions"
+                    :model-loading="isFetchingModels"
+                    :model-error="modelsError"
+                    :has-api-key="Boolean(apiKey.trim())"
+                    :can-fetch-models="Boolean(apiKey.trim() && apiEndpoint.trim())"
+                    @fetch-models="handleFetchModels"
                 />
             </div>
+        </header>
 
-            <!-- Footer -->
+        <!-- 主内容创作空间 -->
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+            <div class="grid lg:grid-cols-12 gap-6 items-start">
+                <!-- ================= 左侧：一体化创作 Studio（7列） ================= -->
+                <div class="lg:col-span-7 space-y-4">
+                    <!-- 统一创作容器 (Unified Studio Container) -->
+                    <div class="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-5 shadow-xs">
+                        <!-- 1. 工作流模式切换 Tabs (文生图 / 图生图) -->
+                        <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
+                            <div class="flex bg-slate-100 p-0.5 rounded-xl">
+                                <button
+                                    @click="activeWorkflow = 'text'"
+                                    :class="[
+                                        'py-1.5 px-3 rounded-lg text-xs sm:text-sm transition-all flex items-center gap-1.5',
+                                        activeWorkflow === 'text'
+                                            ? 'bg-white text-slate-900 shadow-xs font-semibold'
+                                            : 'text-slate-500 hover:text-slate-900 font-medium'
+                                    ]"
+                                >
+                                    <span>✨</span>
+                                    <span>文生图 (Text to Image)</span>
+                                </button>
+                                <button
+                                    @click="activeWorkflow = 'image'"
+                                    :class="[
+                                        'py-1.5 px-3 rounded-lg text-xs sm:text-sm transition-all flex items-center gap-1.5',
+                                        activeWorkflow === 'image'
+                                            ? 'bg-white text-slate-900 shadow-xs font-semibold'
+                                            : 'text-slate-500 hover:text-slate-900 font-medium'
+                                    ]"
+                                >
+                                    <span>🖼️</span>
+                                    <span>图文生图 (Image + Text)</span>
+                                    <span
+                                        v-if="selectedImages.length"
+                                        class="text-xs bg-slate-200 text-slate-700 px-1.5 py-0.2 rounded-full font-mono font-medium"
+                                    >
+                                        {{ selectedImages.length }}
+                                    </span>
+                                </button>
+                            </div>
+
+                            <button
+                                v-if="activeWorkflow === 'text' && textToImagePrompt"
+                                @click="textToImagePrompt = ''"
+                                class="text-xs text-slate-400 hover:text-rose-600 font-medium transition-colors"
+                            >
+                                清空
+                            </button>
+                        </div>
+
+                        <!-- 2. 文生图模式主体 -->
+                        <div v-show="activeWorkflow === 'text'" class="space-y-3">
+                            <div class="relative">
+                                <textarea
+                                    v-model="textToImagePrompt"
+                                    placeholder="描述期望生成的画面细节（主体、环境、光影、画风与材质等），例如：阳光穿透晨雾洒在金色微缩建筑上，丁达尔光效，吉卜力治愈手绘风，8K 细腻画质..."
+                                    rows="4"
+                                    class="w-full px-3.5 py-3 bg-slate-50 hover:bg-slate-100/50 focus:bg-white border border-slate-200 rounded-xl resize-y min-h-[110px] focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 text-sm leading-relaxed transition-colors duration-150"
+                                    @keydown.ctrl.enter="handleTextToImageGenerate"
+                                    @keydown.meta.enter="handleTextToImageGenerate"
+                                />
+                                <div class="text-xs text-slate-400 text-right mt-1 font-mono">
+                                    {{ textToImagePrompt.length }} 字符
+                                </div>
+                            </div>
+
+                            <!-- 预置提示词卡片网格 (不再使用横向拉拽，采用卡片式呈现) -->
+                            <PresetPrompts
+                                @select="handlePresetSelect"
+                                @append="handlePresetAppend"
+                            />
+                        </div>
+
+                        <!-- 3. 图文生图模式主体 -->
+                        <div v-show="activeWorkflow === 'image'" class="space-y-3">
+                            <!-- 参考图上传区 -->
+                            <ImageUpload v-model="selectedImages" />
+
+                            <!-- 风格预设卡片网格 -->
+                            <div>
+                                <div class="text-xs font-medium text-slate-600 mb-1.5 flex items-center justify-between">
+                                    <span>艺术风格预设：</span>
+                                    <span v-if="selectedStyle" class="text-xs text-amber-600 font-medium">
+                                        已选: {{ selectedStyleTitle }}
+                                    </span>
+                                </div>
+
+                                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                    <div
+                                        v-for="tpl in styleTemplates"
+                                        :key="tpl.id"
+                                        @click="toggleStyleTemplate(tpl.id)"
+                                        :class="[
+                                            'p-2.5 rounded-xl border text-left cursor-pointer transition-all flex flex-col justify-between shadow-2xs',
+                                            selectedStyle === tpl.id
+                                                ? 'bg-amber-50/60 border-amber-500 ring-1 ring-amber-500/20'
+                                                : 'bg-white hover:bg-slate-50 border-slate-200'
+                                        ]"
+                                    >
+                                        <div class="flex items-center justify-between gap-1 mb-1">
+                                            <span class="text-base">{{ tpl.icon || '🎨' }}</span>
+                                            <span v-if="selectedStyle === tpl.id" class="text-xs text-amber-600 font-semibold">✓ 已选</span>
+                                        </div>
+                                        <div>
+                                            <h5 class="text-xs font-semibold text-slate-800 truncate mb-0.5">{{ tpl.title }}</h5>
+                                            <div class="relative group/tooltip">
+                                                <p
+                                                    :title="tpl.description"
+                                                    class="text-xs text-slate-400 line-clamp-1 leading-tight"
+                                                >
+                                                    {{ tpl.description }}
+                                                </p>
+
+                                                <!-- 悬浮完整显示中文描述 -->
+                                                <div
+                                                    class="absolute left-0 bottom-full mb-1.5 z-40 w-60 p-2.5 bg-slate-900 text-white rounded-xl shadow-xl text-xs leading-relaxed opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all duration-150 pointer-events-none"
+                                                >
+                                                    <div class="font-semibold text-amber-300 mb-0.5 flex items-center gap-1">
+                                                        <span>{{ tpl.icon || '🎨' }}</span>
+                                                        <span>{{ tpl.title }}</span>
+                                                    </div>
+                                                    <div class="text-slate-200 font-normal">
+                                                        {{ tpl.description }}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 自定义改图描述 -->
+                            <div class="relative">
+                                <textarea
+                                    v-model="customPrompt"
+                                    placeholder="输入定向改图要求（例如：保持主体面部特征一致，背景替换为赛博朋克雨夜街道，身披机能装甲，带有微弱霓虹光影...）"
+                                    rows="2"
+                                    class="w-full px-3 py-2 bg-slate-50 hover:bg-slate-100/50 focus:bg-white border border-slate-200 rounded-xl resize-y min-h-[72px] focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 text-sm leading-relaxed transition-colors duration-150"
+                                    @keydown.ctrl.enter="handleGenerate"
+                                    @keydown.meta.enter="handleGenerate"
+                                />
+                            </div>
+                        </div>
+
+                        <!-- 4. 底部内嵌控制栏（比例 / 参数 / 主生成按钮） -->
+                        <div class="mt-4 pt-3.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2.5">
+                            <!-- 左侧：比例与高级参数胶囊 -->
+                            <div class="flex flex-wrap items-center gap-1.5 text-xs">
+                                <!-- 常用比例按钮组 -->
+                                <div class="flex items-center gap-0.5 bg-slate-100 p-0.5 rounded-lg">
+                                    <button
+                                        v-for="r in commonAspectRatios"
+                                        :key="r.ratio"
+                                        @click="setAspectRatio(r.ratio)"
+                                        :class="[
+                                            'px-2 py-0.5 rounded-md text-xs font-medium transition-all',
+                                            currentAspectRatio === r.ratio
+                                                ? 'bg-white text-slate-900 shadow-xs font-semibold'
+                                                : 'text-slate-500 hover:text-slate-800'
+                                        ]"
+                                    >
+                                        {{ r.ratio }}
+                                    </button>
+                                </div>
+
+                                <!-- 清晰度档位 (若当前模型支持) -->
+                                <div v-if="currentModelCapability?.supportsImageSize" class="relative">
+                                    <select
+                                        :value="currentModelSettings.imageSize"
+                                        @change="handleImageSizeChange(($event.target as HTMLSelectElement).value)"
+                                        class="pl-2 pr-5 py-1 bg-slate-100 hover:bg-slate-200/70 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 appearance-none cursor-pointer focus:outline-none transition-colors"
+                                    >
+                                        <option v-for="opt in currentModelCapability.imageSizeOptions || []" :key="opt.value" :value="opt.value">
+                                            {{ opt.label }}
+                                        </option>
+                                    </select>
+                                    <div class="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 text-[9px]">
+                                        ▼
+                                    </div>
+                                </div>
+
+                                <!-- 渲染质量档位 (若当前模型支持，如 GPT-Image) -->
+                                <div v-if="currentModelCapability?.supportsQuality" class="relative">
+                                    <select
+                                        :value="currentModelSettings.quality"
+                                        @change="handleQualityChange(($event.target as HTMLSelectElement).value)"
+                                        class="pl-2 pr-5 py-1 bg-slate-100 hover:bg-slate-200/70 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 appearance-none cursor-pointer focus:outline-none transition-colors"
+                                    >
+                                        <option v-for="opt in currentModelCapability.qualityOptions || []" :key="opt.value" :value="opt.value">
+                                            {{ opt.label }}
+                                        </option>
+                                    </select>
+                                    <div class="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 text-[9px]">
+                                        ▼
+                                    </div>
+                                </div>
+
+                                <!-- 输出分辨率 (若当前模型支持，如 Grok Imagine) -->
+                                <div v-if="currentModelCapability?.supportsResolution" class="relative">
+                                    <select
+                                        :value="currentModelSettings.resolution"
+                                        @change="handleResolutionChange(($event.target as HTMLSelectElement).value)"
+                                        class="pl-2 pr-5 py-1 bg-slate-100 hover:bg-slate-200/70 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 appearance-none cursor-pointer focus:outline-none transition-colors"
+                                    >
+                                        <option v-for="opt in currentModelCapability.resolutionOptions || []" :key="opt.value" :value="opt.value">
+                                            {{ opt.label }}
+                                        </option>
+                                    </select>
+                                    <div class="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 text-[9px]">
+                                        ▼
+                                    </div>
+                                </div>
+
+                                <!-- 谷歌搜索联网开关 (若当前模型支持) -->
+                                <label
+                                    v-if="currentModelCapability?.supportsGoogleSearch"
+                                    class="flex items-center gap-1.5 cursor-pointer text-xs text-slate-600 bg-slate-100 hover:bg-slate-200/70 px-2 py-1 rounded-lg transition-colors"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        :checked="currentModelSettings.enableGoogleSearch"
+                                        @change="handleToggleGoogleSearch(($event.target as HTMLInputElement).checked)"
+                                        class="w-3.5 h-3.5 text-slate-900 border-slate-300 rounded"
+                                    />
+                                    <span>Google 联网搜索</span>
+                                </label>
+                            </div>
+
+                            <!-- 右侧：生成操作按钮 (靠右保持平齐) -->
+                            <div class="flex items-center gap-2 ml-auto shrink-0">
+                                <button
+                                    v-if="activeWorkflow === 'text'"
+                                    @click="handleTextToImageGenerate"
+                                    :disabled="!canGenerateTextImage"
+                                    :class="[
+                                        'px-5 py-2 rounded-xl font-medium text-xs sm:text-sm transition-all flex items-center gap-2 shadow-xs',
+                                        canGenerateTextImage
+                                            ? 'bg-slate-900 hover:bg-slate-800 text-white cursor-pointer active:scale-[0.98]'
+                                            : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none'
+                                    ]"
+                                >
+                                    <span v-if="!isTextToImageLoading" class="flex items-center gap-1.5">
+                                        <span>✨</span>
+                                        <span>立即生成</span>
+                                        <span class="text-[10px] opacity-70 font-mono hidden sm:inline">(↵)</span>
+                                    </span>
+                                    <span v-else class="flex items-center gap-1.5">
+                                        <svg class="w-3.5 h-3.5 animate-spin text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                        </svg>
+                                        <span>正在生成...</span>
+                                    </span>
+                                </button>
+
+                                <button
+                                    v-else
+                                    @click="handleGenerate"
+                                    :disabled="!canGenerate"
+                                    :class="[
+                                        'px-5 py-2 rounded-xl font-medium text-xs sm:text-sm transition-all flex items-center gap-2 shadow-xs',
+                                        canGenerate
+                                            ? 'bg-slate-900 hover:bg-slate-800 text-white cursor-pointer active:scale-[0.98]'
+                                            : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none'
+                                    ]"
+                                >
+                                    <span v-if="!isLoading" class="flex items-center gap-1.5">
+                                        <span>🖼️</span>
+                                        <span>开始图文重塑</span>
+                                        <span class="text-[10px] opacity-70 font-mono hidden sm:inline">(↵)</span>
+                                    </span>
+                                    <span v-else class="flex items-center gap-1.5">
+                                        <svg class="w-3.5 h-3.5 animate-spin text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                        </svg>
+                                        <span>正在重塑...</span>
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 缺省条件微提示 -->
+                        <div v-if="validationTip" class="text-right mt-2 text-xs text-slate-400">
+                            {{ validationTip }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ================= 右侧：作品画廊 Showcase（5列） ================= -->
+                <div class="lg:col-span-5 sticky lg:top-20">
+                    <ResultDisplay
+                        :results="displayResults"
+                        :loading="displayLoading"
+                        :error="displayError"
+                        :can-push="canPushDisplayResult"
+                        :current-prompt="activeResultPrompt"
+                        :history="generationHistory"
+                        @download="handleDownloadResult"
+                        @push="handlePushDisplayResult"
+                        @retry="handleRetry"
+                        @open-api-modal="showApiModal = true"
+                        @select-history="handleSelectHistory"
+                    />
+                </div>
+            </div>
+
+            <!-- 页脚 -->
             <Footer />
-        </div>
+        </main>
+
+        <!-- API 设置弹窗 -->
+        <ApiKeyModal
+            v-model:is-open="showApiModal"
+            v-model:api-key="apiKey"
+            v-model:endpoint="apiEndpoint"
+            :models-count="modelOptions.length"
+            :is-fetching-models="isFetchingModels"
+            :models-error="modelsError"
+            @fetch-models="handleFetchModels"
+            @clear-key="handleClearApiKey"
+        />
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
-import ApiKeyInput from './components/ApiKeyInput.vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import ModelSelector from './components/ModelSelector.vue'
+import PresetPrompts from './components/PresetPrompts.vue'
 import ImageUpload from './components/ImageUpload.vue'
-import StylePromptSelector from './components/StylePromptSelector.vue'
 import ResultDisplay from './components/ResultDisplay.vue'
+import ApiKeyModal from './components/ApiKeyModal.vue'
 import Footer from './components/Footer.vue'
-import ModelImageSettings from './components/ModelImageSettings.vue'
 import { fetchModels, generateImage } from './services/api'
-import { styleTemplates } from './data/templates'
+import { styleTemplates, presetPrompts } from './data/templates'
 import { LocalStorage } from './utils/storage'
-import type { ApiModel, GenerateRequest, ModelOption } from './types'
+import type { ApiModel, GenerateRequest, ModelOption, HistoryRecord } from './types'
 import { DEFAULT_API_ENDPOINT, DEFAULT_MODEL_ID, normalizeApiBase } from './config/api'
 import { getModelCapability, normalizeModelImageSettings, resolveModelFamily } from './config/modelCapabilities'
+import { filterAndProcessRemoteModels, isImageModel } from './config/imageModels'
 import type { ModelFamily, ModelImageSettings as ModelImageSettingsType } from './config/modelCapabilities'
 
-const apiKey = ref('')
-const apiEndpoint = ref('')  // 改为空字符串，避免初始化时触发 watch
-const selectedImages = ref<string[]>([])
-const selectedStyle = ref('')
-const customPrompt = ref('')
-const isLoading = ref(false)
-const result = ref<string[]>([])
-const error = ref<string | null>(null)
+const activeWorkflow = ref<'text' | 'image'>('text')
+
+// 同步从本地存储读取初始值，避免异步时序差与无故弹窗
+const savedInitKey = LocalStorage.getApiKey()
+const savedInitEndpoint = normalizeApiBase(LocalStorage.getApiEndpoint()) || DEFAULT_API_ENDPOINT
+const savedInitModel = LocalStorage.getModelId() || ''
+
+const apiKey = ref(savedInitKey)
+const apiEndpoint = ref(savedInitEndpoint)
+const selectedModel = ref(savedInitModel)
+const showApiModal = ref(false)
+
+const modelOptions = ref<ModelOption[]>([])
+const isFetchingModels = ref(false)
+const modelsError = ref<string | null>(null)
+const modelImageSettingsMap = ref<Partial<Record<ModelFamily, ModelImageSettingsType>>>({})
+
+// 文生图
 const textToImagePrompt = ref('')
 const textToImageResult = ref<string[]>([])
 const textToImageError = ref<string | null>(null)
 const isTextToImageLoading = ref(false)
+
+// 图生图
+const selectedImages = ref<string[]>([])
+const selectedStyle = ref('')
+const customPrompt = ref('')
+const result = ref<string[]>([])
+const error = ref<string | null>(null)
+const isLoading = ref(false)
+
 const latestResultSource = ref<'text' | 'image' | null>(null)
-const showApiSettings = ref(false)
-const modelOptions = ref<ModelOption[]>([])
-const selectedModel = ref('')  // 改为空字符串，避免初始化时使用默认值
-const isFetchingModels = ref(false)
-const modelsError = ref<string | null>(null)
-const modelImageSettingsMap = ref<Partial<Record<ModelFamily, ModelImageSettingsType>>>({})
+const activeResultPrompt = ref('')
+const generationHistory = ref<HistoryRecord[]>([])
+
+const commonAspectRatios = [
+    { ratio: '1:1', label: '方形' },
+    { ratio: '16:9', label: '横屏' },
+    { ratio: '9:16', label: '竖屏' },
+    { ratio: '4:3', label: '4:3' },
+    { ratio: '3:4', label: '3:4' }
+]
+
 let hasSyncedInitialEndpoint = false
 
-// 组件挂载时从本地存储读取API密钥
 onMounted(() => {
-    const savedApiKey = LocalStorage.getApiKey()
-    const savedEndpoint = LocalStorage.getApiEndpoint()
-    const savedModelId = LocalStorage.getModelId()
-
-    if (savedApiKey) {
-        apiKey.value = savedApiKey
-        showApiSettings.value = false
-    } else {
-        // 如果没有API密钥，自动展开设置面板
-        showApiSettings.value = true
-    }
-
-    // 先设置端点，再恢复模型缓存，最后设置模型ID
-    const endpointToUse = normalizeApiBase(savedEndpoint) || DEFAULT_API_ENDPOINT
-    const modelIdToUse = savedModelId.trim() || DEFAULT_MODEL_ID
-
     modelImageSettingsMap.value = LocalStorage.getModelImageSettingsMap()
 
-    // 恢复模型缓存
-    restoreModelOptionsFromCache(endpointToUse)
+    // 启动时直接从本地缓存恢复端点真实图像模型
+    restoreModelOptionsFromCache(apiEndpoint.value)
 
-    // 设置值（这些赋值会触发 watch，但此时 hasSyncedInitialEndpoint 还是 false）
-    selectedModel.value = modelIdToUse
-    apiEndpoint.value = endpointToUse
-
-    ensureSelectedOptionPresent()
-
-    // 最后才标记初始化完成，这样后续的 watch 触发才会被当作用户操作
     hasSyncedInitialEndpoint = true
+
+    window.addEventListener('keydown', onGlobalKeyDown)
+
+    // 如果用户已配置端点和密钥，且当前没有模型缓存，在后台自动静默拉取真实模型，无需手动弹窗！
+    if (apiKey.value.trim() && apiEndpoint.value.trim() && modelOptions.value.length === 0) {
+        handleFetchModels()
+    }
 })
 
-// 监听API密钥变化，自动保存到本地存储
+onUnmounted(() => {
+    window.removeEventListener('keydown', onGlobalKeyDown)
+})
+
+const onGlobalKeyDown = (e: KeyboardEvent) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        if (activeWorkflow.value === 'text' && canGenerateTextImage.value) {
+            e.preventDefault()
+            handleTextToImageGenerate()
+        } else if (activeWorkflow.value === 'image' && canGenerate.value) {
+            e.preventDefault()
+            handleGenerate()
+        }
+    }
+}
+
 watch(
     apiKey,
-    (newApiKey: string, previousApiKey?: string) => {
+    (newApiKey: string) => {
+        if (!hasSyncedInitialEndpoint) return
         const trimmed = newApiKey.trim()
         if (trimmed) {
             LocalStorage.saveApiKey(trimmed)
         } else {
             LocalStorage.clearApiKey()
-            if ((previousApiKey || '').trim()) {
-                LocalStorage.clearModelCache()
-                modelOptions.value = []
-                selectedModel.value = DEFAULT_MODEL_ID
-                modelsError.value = null
-            }
-            showApiSettings.value = true
         }
     },
     { immediate: false }
@@ -262,12 +517,8 @@ watch(
             LocalStorage.clearApiEndpoint()
         }
 
-        // 如果是初始化阶段（在 onMounted 中），直接返回，不做任何处理
-        if (!hasSyncedInitialEndpoint) {
-            return
-        }
+        if (!hasSyncedInitialEndpoint) return
 
-        // 只有在初始化完成后，用户主动修改端点时才重置模型
         if (trimmed !== previousTrimmed) {
             modelOptions.value = []
             modelsError.value = null
@@ -275,7 +526,6 @@ watch(
                 selectedModel.value = DEFAULT_MODEL_ID
                 LocalStorage.clearModelCache(previousTrimmed)
             }
-            showApiSettings.value = true
         }
     },
     { immediate: false }
@@ -287,31 +537,23 @@ watch(
         const trimmed = newModel.trim()
         if (trimmed) {
             LocalStorage.saveModelId(trimmed)
+            // 关键：切换模型时立即主动同步并规范化该模型的专有配置，立刻触发视图响应式刷新！
+            const family = resolveModelFamily(trimmed)
+            if (family !== 'unsupported') {
+                const existing = modelImageSettingsMap.value[family]
+                const normalized = normalizeModelImageSettings(family, existing)
+                modelImageSettingsMap.value = {
+                    ...modelImageSettingsMap.value,
+                    [family]: normalized
+                }
+                LocalStorage.saveModelImageSettings(family, normalized)
+            }
         } else {
             LocalStorage.clearModelId()
-            LocalStorage.clearModelCache(apiEndpoint.value)
-            // 避免在初始化时重置
-            if (hasSyncedInitialEndpoint) {
-                selectedModel.value = DEFAULT_MODEL_ID
-                showApiSettings.value = true
-            }
-        }
-        // 只在初始化完成后才调用 ensureSelectedOptionPresent
-        if (hasSyncedInitialEndpoint) {
-            ensureSelectedOptionPresent()
         }
     },
     { immediate: false }
 )
-
-// 注释掉：监听风格和提示词变化时清除结果的逻辑
-// 改进：保留已生成的图片，让用户可以参考上次结果来调整参数
-// watch([selectedStyle, customPrompt], () => {
-//     if (result.value || error.value) {
-//         result.value = null
-//         error.value = null
-//     }
-// })
 
 watch(
     textToImagePrompt,
@@ -323,124 +565,45 @@ watch(
     { immediate: false }
 )
 
+// 核心：仅从端点拉取模型，并严格过滤非图像模型！只显示获取到的模型！
 const handleFetchModels = async () => {
-    if (!apiKey.value.trim() || !apiEndpoint.value.trim()) return
+    if (!apiKey.value.trim() || !apiEndpoint.value.trim()) {
+        showApiModal.value = true
+        return
+    }
 
     isFetchingModels.value = true
     modelsError.value = null
 
     try {
         const rawModels = await fetchModels(apiKey.value, apiEndpoint.value)
-        const options = mapModelsToOptions(rawModels)
+        // 关键过滤：仅保留端点返回的真实图像模型
+        const filtered = filterAndProcessRemoteModels(rawModels)
 
-        if (!options.length) {
-            throw new Error('未找到可用模型')
+        if (!filtered.length) {
+            throw new Error('端点已响应，但未检测到支持图像生成的模型')
         }
 
-        modelOptions.value = options
-        LocalStorage.saveModelCache(apiEndpoint.value, options)
+        modelOptions.value = filtered
+        LocalStorage.saveModelCache(apiEndpoint.value, filtered)
 
-        const preferred =
-            options.find(option => option.id === selectedModel.value) ||
-            options.find(option => option.id === DEFAULT_MODEL_ID) ||
-            options.find(option => option.supportsImages) ||
-            options[0]
-
-        selectedModel.value = preferred.id
-        ensureSelectedOptionPresent()
+        // 如果当前选中的模型不在端点返回列表中，自动切换到端点第一个可用图像模型
+        const exists = filtered.some(o => o.id === selectedModel.value)
+        if (!exists) {
+            selectedModel.value = filtered[0].id
+        }
     } catch (fetchError) {
         modelsError.value = fetchError instanceof Error ? fetchError.message : '无法获取模型列表'
-        modelOptions.value = []
-        selectedModel.value = DEFAULT_MODEL_ID
     } finally {
         isFetchingModels.value = false
     }
 }
 
-const mapModelsToOptions = (models: ApiModel[]): ModelOption[] => {
-    const uniqueIds = new Set<string>()
-    const options: ModelOption[] = []
-
-    models.forEach(model => {
-        if (!model?.id || uniqueIds.has(model.id)) return
-        uniqueIds.add(model.id)
-
-        const cap = getModelCapability(model.id)
-        const supportsImages = cap !== null || detectImageSupport(model)
-        const label = buildModelLabel(model)
-        const description = (typeof model.description === 'string' && model.description.trim()) ||
-            (typeof (model as Record<string, unknown>).about === 'string' && String((model as Record<string, unknown>).about).trim()) ||
-            cap?.parameterCategory ||
-            ''
-
-        let category: ModelOption['category'] = 'other'
-        if (cap) {
-            if (cap.provider === 'Google') category = 'google'
-            else if (cap.provider === 'OpenAI') category = 'openai'
-            else if (cap.provider === 'xAI') category = 'xai'
-            else category = 'other-image'
-        } else if (supportsImages) {
-            category = 'other-image'
-        }
-
-        options.push({
-            id: model.id,
-            label,
-            description,
-            supportsImages,
-            provider: cap?.provider,
-            category,
-            features: cap?.featureTags,
-            parameterCategory: cap?.parameterCategory
-        })
-    })
-
-    return options.sort((a, b) => {
-        if (a.supportsImages !== b.supportsImages) {
-            return a.supportsImages ? -1 : 1
-        }
-        return a.label.localeCompare(b.label)
-    })
-}
-
-const detectImageSupport = (model: ApiModel): boolean => {
-    if (resolveModelFamily(model.id) !== 'unsupported') {
-        return true
-    }
-
-    const caps = model.capabilities
-    if (caps && typeof caps === 'object') {
-        if ((caps as Record<string, unknown>).image === true) return true
-        if ((caps as Record<string, unknown>).images === true) return true
-        if ((caps as Record<string, unknown>).vision === true) return true
-        if ((caps as Record<string, unknown>).multimodal === true) return true
-    }
-
-    const tags = (model as Record<string, unknown>).tags
-    if (Array.isArray(tags) && tags.some(tag => typeof tag === 'string' && /image|vision|photo|picture|art|draw/i.test(tag))) {
-        return true
-    }
-
-    return /image|vision|flux|art|picture|photo|illustration/i.test(model.id)
-}
-
-const buildModelLabel = (model: ApiModel): string => {
-    if (model.name && typeof model.name === 'string' && model.name.trim()) {
-        return `${model.id} - ${model.name.trim()}`
-    }
-    return model.id
-}
-
-const handleModelPicked = () => {
-    if (!selectedModel.value.trim()) return
-    modelsError.value = null
-    if (!showApiSettings.value) return
-
-    setTimeout(() => {
-        if (selectedModel.value.trim()) {
-            showApiSettings.value = false
-        }
-    }, 600)
+const handleClearApiKey = () => {
+    LocalStorage.clearApiKey()
+    LocalStorage.clearModelId()
+    apiKey.value = ''
+    selectedModel.value = DEFAULT_MODEL_ID
 }
 
 const restoreModelOptionsFromCache = (endpoint: string) => {
@@ -450,50 +613,59 @@ const restoreModelOptionsFromCache = (endpoint: string) => {
     const cached = LocalStorage.getModelCache(trimmedEndpoint)
     if (!cached.length) return
 
-    modelOptions.value = cached
-    ensureSelectedOptionPresent()
-}
+    // 严格确保缓存中的模型也是图像模型
+    const valid = cached.filter(m => isImageModel(m))
+    modelOptions.value = valid
 
-const ensureSelectedOptionPresent = () => {
-    const currentId = selectedModel.value.trim()
-    if (!currentId) return
-
-    const exists = modelOptions.value.some(option => option.id === currentId)
-    if (!exists) {
-        const cap = getModelCapability(currentId)
-        modelOptions.value = [
-            ...modelOptions.value,
-            {
-                id: currentId,
-                label: cap ? `${currentId} - ${cap.label}` : buildFallbackLabel(currentId),
-                description: cap?.parameterCategory || '',
-                supportsImages: true,
-                provider: cap?.provider,
-                features: cap?.featureTags,
-                parameterCategory: cap?.parameterCategory
-            }
-        ]
+    // 恢复用户保存的模型ID，前提是该模型必须在获取到的图像模型列表中
+    const savedModelId = (LocalStorage.getModelId() || '').trim().toLowerCase()
+    const matched = valid.find(m => m.id.toLowerCase() === savedModelId)
+    if (matched) {
+        selectedModel.value = matched.id
+    } else if (valid.length > 0) {
+        selectedModel.value = valid[0].id
+    } else {
+        selectedModel.value = ''
     }
-
-    modelOptions.value = modelOptions.value.sort((a, b) => {
-        if (a.supportsImages !== b.supportsImages) {
-            return a.supportsImages ? -1 : 1
-        }
-        return a.label.localeCompare(b.label)
-    })
 }
 
-const buildFallbackLabel = (modelId: string): string => {
-    const segments = modelId.split('/')
-    const lastSegment = segments[segments.length - 1]
-    return lastSegment || modelId
+const handlePresetSelect = (prompt: string) => {
+    if (activeWorkflow.value === 'text') {
+        textToImagePrompt.value = prompt
+    } else {
+        customPrompt.value = prompt
+    }
 }
 
-const pushImageToUpload = (image: string | null) => {
-    if (!image) return
-    const filtered = selectedImages.value.filter(existing => existing !== image)
-    selectedImages.value = [image, ...filtered]
+const handlePresetAppend = (prompt: string) => {
+    const targetRef = activeWorkflow.value === 'text' ? textToImagePrompt : customPrompt
+    const current = targetRef.value.trimEnd()
+    if (!current) {
+        targetRef.value = prompt
+        return
+    }
+    // 智能检测标点符号，自然追加到末尾
+    if (/[,，;；\n]$/.test(current)) {
+        targetRef.value = `${current} ${prompt}`
+    } else {
+        targetRef.value = `${current}, ${prompt}`
+    }
 }
+
+const applyRandomPrompt = () => {
+    if (!presetPrompts.length) return
+    const randomIndex = Math.floor(Math.random() * presetPrompts.length)
+    textToImagePrompt.value = presetPrompts[randomIndex].prompt
+}
+
+const toggleStyleTemplate = (id: string) => {
+    selectedStyle.value = selectedStyle.value === id ? '' : id
+}
+
+const selectedStyleTitle = computed(() => {
+    const found = styleTemplates.find(t => t.id === selectedStyle.value)
+    return found ? found.title : ''
+})
 
 const displayLoading = computed(() => {
     if (latestResultSource.value === 'image') return isLoading.value
@@ -515,27 +687,47 @@ const displayError = computed(() => {
 
 const canPushDisplayResult = computed(() => Boolean(displayResults.value.length > 0))
 
+// 严格验证当前选择的模型是否有效且真正存在于端点返回的图像模型列表中
+const isModelValid = computed(() => {
+    const cur = selectedModel.value.trim().toLowerCase()
+    if (!cur) return false
+    return modelOptions.value.some(m => m.id.trim().toLowerCase() === cur)
+})
+
 const canGenerateTextImage = computed(
     () =>
-        apiKey.value.trim() &&
-        apiEndpoint.value.trim() &&
-        selectedModel.value.trim() &&
-        textToImagePrompt.value.trim() &&
+        apiKey.value.trim() !== '' &&
+        apiEndpoint.value.trim() !== '' &&
+        isModelValid.value &&
+        textToImagePrompt.value.trim() !== '' &&
         !isTextToImageLoading.value
 )
 
 const canGenerate = computed(
     () =>
-        apiKey.value.trim() &&
-        apiEndpoint.value.trim() &&
-        selectedModel.value.trim() &&
+        apiKey.value.trim() !== '' &&
+        apiEndpoint.value.trim() !== '' &&
+        isModelValid.value &&
         selectedImages.value.length > 0 &&
-        (selectedStyle.value || customPrompt.value.trim()) &&
+        (selectedStyle.value !== '' || customPrompt.value.trim() !== '') &&
         !isLoading.value
 )
 
-const currentModelFamily = computed(() => resolveModelFamily(selectedModel.value))
+const validationTip = computed(() => {
+    if (!apiKey.value.trim()) return '请先配置 API 密钥'
+    if (!apiEndpoint.value.trim()) return '请先配置 API 服务端点'
+    if (!isModelValid.value) return '请选择生图模型'
+    if (activeWorkflow.value === 'text') {
+        if (!textToImagePrompt.value.trim()) return '请输入画面描述或点选上方灵感'
+    } else {
+        if (selectedImages.value.length === 0) return '请先上传至少一张参考原图'
+        if (!selectedStyle.value && !customPrompt.value.trim()) return '请选择预设风格或填写改图要求'
+    }
+    return null
+})
 
+// 模型参数
+const currentModelFamily = computed(() => resolveModelFamily(selectedModel.value))
 const currentModelCapability = computed(() => getModelCapability(selectedModel.value))
 
 const currentModelSettings = computed(() => {
@@ -547,6 +739,28 @@ const currentModelSettings = computed(() => {
     const cached = modelImageSettingsMap.value[family]
     return normalizeModelImageSettings(family, cached)
 })
+
+const currentAspectRatio = computed(() => currentModelSettings.value.aspectRatio || '1:1')
+
+const setAspectRatio = (ratio: string) => {
+    handleModelSettingsUpdate({ ...currentModelSettings.value, aspectRatio: ratio })
+}
+
+const handleImageSizeChange = (imageSize: string) => {
+    handleModelSettingsUpdate({ ...currentModelSettings.value, imageSize })
+}
+
+const handleQualityChange = (quality: string) => {
+    handleModelSettingsUpdate({ ...currentModelSettings.value, quality })
+}
+
+const handleResolutionChange = (resolution: string) => {
+    handleModelSettingsUpdate({ ...currentModelSettings.value, resolution })
+}
+
+const handleToggleGoogleSearch = (enableGoogleSearch: boolean) => {
+    handleModelSettingsUpdate({ ...currentModelSettings.value, enableGoogleSearch })
+}
 
 const handleModelSettingsUpdate = (settings: ModelImageSettingsType) => {
     const family = currentModelFamily.value
@@ -569,19 +783,15 @@ const applyModelSettingsToRequest = (request: GenerateRequest) => {
     if (capability.supportsAspectRatio) {
         request.aspectRatio = settings.aspectRatio
     }
-
     if (capability.supportsImageSize && settings.imageSize) {
         request.imageSize = settings.imageSize
     }
-
     if (capability.supportsQuality && settings.quality) {
         request.quality = settings.quality
     }
-
     if (capability.supportsGoogleSearch) {
         request.enableGoogleSearch = Boolean(settings.enableGoogleSearch)
     }
-
     if (capability.supportsResolution && settings.resolution) {
         request.resolution = settings.resolution
     }
@@ -594,6 +804,7 @@ const handleTextToImageGenerate = async () => {
     isTextToImageLoading.value = true
     textToImageError.value = null
     textToImageResult.value = []
+    activeResultPrompt.value = textToImagePrompt.value
 
     try {
         const request: GenerateRequest = {
@@ -601,7 +812,7 @@ const handleTextToImageGenerate = async () => {
             images: [],
             apikey: apiKey.value,
             endpoint: apiEndpoint.value.trim() || DEFAULT_API_ENDPOINT,
-            model: selectedModel.value.trim() || DEFAULT_MODEL_ID
+            model: selectedModel.value.trim()
         }
 
         applyModelSettingsToRequest(request)
@@ -609,6 +820,21 @@ const handleTextToImageGenerate = async () => {
         const response = await generateImage(request)
         textToImageResult.value = response.imageUrls
         latestResultSource.value = 'text'
+
+        if (response.imageUrls.length > 0) {
+            generationHistory.value.unshift({
+                id: `history-${Date.now()}`,
+                timestamp: Date.now(),
+                type: 'text',
+                prompt: textToImagePrompt.value,
+                imageUrls: response.imageUrls,
+                model: selectedModel.value,
+                aspectRatio: currentModelSettings.value.aspectRatio
+            })
+            if (generationHistory.value.length > 10) {
+                generationHistory.value.pop()
+            }
+        }
     } catch (err) {
         textToImageError.value = err instanceof Error ? err.message : '生成失败'
         textToImageResult.value = []
@@ -617,13 +843,95 @@ const handleTextToImageGenerate = async () => {
     }
 }
 
+const handleGenerate = async () => {
+    if (!canGenerate.value) return
+
+    latestResultSource.value = 'image'
+    isLoading.value = true
+    error.value = null
+    result.value = []
+
+    try {
+        const prompt = selectedStyle.value
+            ? styleTemplates.find(t => t.id === selectedStyle.value)?.prompt || customPrompt.value
+            : customPrompt.value
+
+        activeResultPrompt.value = prompt
+
+        const request: GenerateRequest = {
+            prompt,
+            images: selectedImages.value,
+            apikey: apiKey.value,
+            endpoint: apiEndpoint.value.trim() || DEFAULT_API_ENDPOINT,
+            model: selectedModel.value.trim()
+        }
+
+        applyModelSettingsToRequest(request)
+
+        const response = await generateImage(request)
+        result.value = response.imageUrls
+        latestResultSource.value = 'image'
+
+        if (response.imageUrls.length > 0) {
+            generationHistory.value.unshift({
+                id: `history-${Date.now()}`,
+                timestamp: Date.now(),
+                type: 'image',
+                prompt,
+                imageUrls: response.imageUrls,
+                model: selectedModel.value,
+                inputImages: [...selectedImages.value],
+                aspectRatio: currentModelSettings.value.aspectRatio
+            })
+            if (generationHistory.value.length > 10) {
+                generationHistory.value.pop()
+            }
+        }
+    } catch (err) {
+        error.value = err instanceof Error ? err.message : '生成失败'
+        result.value = []
+    } finally {
+        isLoading.value = false
+    }
+}
+
+const handleRetry = () => {
+    if (latestResultSource.value === 'text') {
+        handleTextToImageGenerate()
+    } else {
+        handleGenerate()
+    }
+}
+
 const handlePushDisplayResult = (image: string) => {
-    pushImageToUpload(image)
+    if (!image) return
+    const filtered = selectedImages.value.filter(existing => existing !== image)
+    selectedImages.value = [image, ...filtered]
+    activeWorkflow.value = 'image'
+}
+
+const handleSelectHistory = (item: HistoryRecord) => {
+    latestResultSource.value = item.type
+    activeResultPrompt.value = item.prompt
+
+    if (item.type === 'text') {
+        textToImageResult.value = item.imageUrls
+        textToImagePrompt.value = item.prompt
+    } else {
+        result.value = item.imageUrls
+        if (item.inputImages?.length) {
+            selectedImages.value = item.inputImages
+        }
+        customPrompt.value = item.prompt
+    }
+
+    if (item.model) {
+        selectedModel.value = item.model
+    }
 }
 
 const handleDownloadResult = async (image: string) => {
-    if (!image) return
-    if (typeof window === 'undefined') return
+    if (!image || typeof window === 'undefined') return
 
     let downloadUrl = image
     let revokeUrl: string | null = null
@@ -641,7 +949,7 @@ const handleDownloadResult = async (image: string) => {
         const extension = dataMatch ? dataMatch[1] : 'png'
 
         link.href = downloadUrl
-        link.download = `nano-banana-${Date.now()}.${extension}`
+        link.download = `nanobanana-${Date.now()}.${extension}`
         link.rel = 'noopener'
         document.body.appendChild(link)
         link.click()
@@ -650,44 +958,8 @@ const handleDownloadResult = async (image: string) => {
         if (revokeUrl) {
             URL.revokeObjectURL(revokeUrl)
         }
-    } catch (downloadError) {
+    } catch {
         window.open(image, '_blank', 'noopener')
     }
 }
-
-const handleGenerate = async () => {
-    if (!canGenerate.value) return
-
-    latestResultSource.value = 'image'
-    isLoading.value = true
-    error.value = null
-    // 立即清除之前的结果，确保用户看到新的生成过程
-    result.value = []
-
-    try {
-        // 使用选中的样式模板或自定义提示词
-        const prompt = selectedStyle.value ? styleTemplates.find(t => t.id === selectedStyle.value)?.prompt || customPrompt.value : customPrompt.value
-
-        const request: GenerateRequest = {
-            prompt,
-            images: selectedImages.value,
-            apikey: apiKey.value,
-            endpoint: apiEndpoint.value.trim() || DEFAULT_API_ENDPOINT,
-            model: selectedModel.value.trim() || DEFAULT_MODEL_ID
-        }
-
-        applyModelSettingsToRequest(request)
-
-        const response = await generateImage(request)
-        result.value = response.imageUrls
-        latestResultSource.value = 'image'
-    } catch (err) {
-        error.value = err instanceof Error ? err.message : '生成失败'
-        // 生成失败时也要清除结果
-        result.value = []
-    } finally {
-        isLoading.value = false
-    }
-}
-
 </script>

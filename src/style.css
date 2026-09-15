@@ -3,7 +3,32 @@
 @tailwind utilities;
 
 @layer base {
+    html,
     body {
-        @apply bg-dark-bg text-dark-text font-sans;
+        overflow-x: hidden;
     }
+}
+
+/* 彻底杜绝横向滚动条，并提供现代优雅的纵向超细滚动条 */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(203, 213, 225, 0.6) transparent;
+}
+
+::-webkit-scrollbar {
+    width: 5px;
+    height: 0px; /* 彻底隐藏所有横向滚动条 */
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(203, 213, 225, 0.7);
+    border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(148, 163, 184, 0.9);
 }

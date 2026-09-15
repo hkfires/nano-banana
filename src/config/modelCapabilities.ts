@@ -185,9 +185,9 @@ const capabilities: Record<Exclude<ModelFamily, 'unsupported'>, ModelCapability>
         supportsResolution: false,
         aspectRatioParam: 'aspect_ratio',
         imageSizeOptions: [
-            { value: '1K', label: '1K - 标准清晰度' },
-            { value: '2K', label: '2K - 高清晰度' },
-            { value: '4K', label: '4K - 超高清晰度' }
+            { value: '1K', label: '1K 标准' },
+            { value: '2K', label: '2K 高清' },
+            { value: '4K', label: '4K 超清' }
         ]
     },
     'gpt-image-2': {
@@ -197,7 +197,7 @@ const capabilities: Record<Exclude<ModelFamily, 'unsupported'>, ModelCapability>
         apiProtocol: 'images-api',
         categoryLabel: 'OpenAI 图像接口',
         parameterCategory: '多档清晰度 (1K/2K/4K) · 像素尺寸映射 · 渲染质量 (Quality) · 多图编辑',
-        featureTags: ['1K/2K/4K清晰度', '10种尺寸比例', '质量调节(high/med/low)', '支持图生图'],
+        featureTags: ['1K/2K/4K清晰度', '10种尺寸比例', '质量调节(high/med/low)', '支持图文生图'],
         supportsAspectRatio: true,
         supportsImageSize: true,
         supportsQuality: true,
@@ -205,14 +205,14 @@ const capabilities: Record<Exclude<ModelFamily, 'unsupported'>, ModelCapability>
         supportsResolution: false,
         aspectRatioParam: 'size',
         imageSizeOptions: [
-            { value: '1K', label: '1K - 标准清晰度' },
-            { value: '2K', label: '2K - 高清晰度 (2K)' },
-            { value: '4K', label: '4K - 超高清晰度 (4K)' }
+            { value: '1K', label: '1K 标准' },
+            { value: '2K', label: '2K 高清' },
+            { value: '4K', label: '4K 超清' }
         ],
         qualityOptions: [
-            { value: 'high', label: 'high - 高精细节 (推荐)' },
-            { value: 'medium', label: 'medium - 平衡速度' },
-            { value: 'low', label: 'low - 极速模式' }
+            { value: 'high', label: '画质: 高精' },
+            { value: 'medium', label: '画质: 标准' },
+            { value: 'low', label: '画质: 极速' }
         ]
     },
     'gpt-image-2.5': {
@@ -222,7 +222,7 @@ const capabilities: Record<Exclude<ModelFamily, 'unsupported'>, ModelCapability>
         apiProtocol: 'images-api',
         categoryLabel: 'OpenAI 图像接口',
         parameterCategory: '多档清晰度 (1K/2K/4K) · 像素尺寸映射 · 渲染质量 (Quality) · 多图编辑',
-        featureTags: ['1K/2K/4K清晰度', '10种尺寸比例', '质量调节(high/med/low)', '新一代画质', '支持图生图'],
+        featureTags: ['1K/2K/4K清晰度', '10种尺寸比例', '质量调节(high/med/low)', '新一代画质', '支持图文生图'],
         supportsAspectRatio: true,
         supportsImageSize: true,
         supportsQuality: true,
@@ -230,14 +230,14 @@ const capabilities: Record<Exclude<ModelFamily, 'unsupported'>, ModelCapability>
         supportsResolution: false,
         aspectRatioParam: 'size',
         imageSizeOptions: [
-            { value: '1K', label: '1K - 标准清晰度' },
-            { value: '2K', label: '2K - 高清晰度 (2K)' },
-            { value: '4K', label: '4K - 超高清晰度 (4K)' }
+            { value: '1K', label: '1K 标准' },
+            { value: '2K', label: '2K 高清' },
+            { value: '4K', label: '4K 超清' }
         ],
         qualityOptions: [
-            { value: 'high', label: 'high - 高精细节 (推荐)' },
-            { value: 'medium', label: 'medium - 平衡速度' },
-            { value: 'low', label: 'low - 极速模式' }
+            { value: 'high', label: '画质: 高精' },
+            { value: 'medium', label: '画质: 标准' },
+            { value: 'low', label: '画质: 极速' }
         ]
     },
     'grok-imagine-image': {
@@ -268,8 +268,8 @@ const capabilities: Record<Exclude<ModelFamily, 'unsupported'>, ModelCapability>
         supportsResolution: true,
         aspectRatioParam: 'aspect_ratio',
         resolutionOptions: [
-            { value: '1k', label: '1k - 标准质量' },
-            { value: '2k', label: '2k - 高质量' }
+            { value: '1k', label: '1k 质量' },
+            { value: '2k', label: '2k 质量' }
         ]
     }
 }

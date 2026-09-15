@@ -5,7 +5,7 @@
                 🔑 API 配置
                 <span v-if="modelValue" class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">密钥已保存</span>
             </h3>
-            <p class="text-xs sm:text-sm text-gray-600">支持 OpenRouter、CLIProxyAPI 或任何 OpenAI / Gemini 兼容图像端点</p>
+            <p class="text-xs sm:text-sm text-gray-600">支持 OpenRouter、CLIProxyAPI 或其他 OpenAI / Gemini 兼容图像端点</p>
         </div>
 
         <div class="space-y-3 sm:space-y-4">
@@ -30,9 +30,9 @@
                 </div>
                 <div class="flex items-center justify-between mt-1">
                     <p class="text-xs text-gray-500">
-                        默认端点可从 <a href="https://openrouter.ai/" target="_blank" class="text-orange-500 hover:underline font-medium">OpenRouter.ai</a> 获取密钥
+                        支持标准 Bearer Token 鉴权，填入对应服务商的 API 密钥
                     </p>
-                    <p v-if="modelValue" class="text-xs text-green-600 flex items-center gap-1 font-medium">💾 已自动保存到本地</p>
+                    <p v-if="modelValue" class="text-xs text-green-600 flex items-center gap-1 font-medium">💾 仅保存于本地浏览器</p>
                 </div>
             </div>
 
@@ -43,7 +43,7 @@
                         type="text"
                         :value="endpoint"
                         @input="$emit('update:endpoint', ($event.target as HTMLInputElement).value)"
-                        placeholder="例如 https://openrouter.ai/api/v1 或 http://localhost:8314/v1"
+                        placeholder="例如 http://localhost:8317/v1"
                         class="flex-1 px-3 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
                     />
                     <button

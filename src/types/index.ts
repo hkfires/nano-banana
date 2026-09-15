@@ -46,6 +46,29 @@ export interface StyleTemplate {
     id: string
     title: string
     prompt: string
-    image: string
+    image?: string
+    icon?: string
+    badge?: string
     description: string
+}
+
+export interface PresetPrompt {
+    id: string
+    title: string
+    category: string
+    prompt: string
+    icon: string
+    description?: string
+    badge?: string
+}
+
+export interface HistoryRecord {
+    id: string
+    timestamp: number
+    type: 'text' | 'image'
+    prompt: string
+    imageUrls: string[]
+    model: string
+    inputImages?: string[]
+    aspectRatio?: string
 }
