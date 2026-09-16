@@ -95,15 +95,19 @@
                 </h4>
                 <p class="text-xs text-slate-400 mb-3 font-mono">已用时 {{ elapsedTime }} 秒</p>
 
-                <!-- 多图并发骨架占位屏 -->
-                <div v-if="batchTotal && batchTotal > 1" class="grid grid-cols-2 gap-3 w-full max-w-md my-2">
+                <!-- 多图并发骨架占位屏 (自适应 1-8 张) -->
+                <div
+                    v-if="batchTotal && batchTotal > 1"
+                    class="grid gap-2.5 w-full max-w-lg my-2"
+                    :class="batchTotal > 4 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2'"
+                >
                     <div
                         v-for="n in batchTotal"
                         :key="n"
-                        class="h-28 rounded-xl bg-slate-200/60 animate-pulse border border-slate-200 flex flex-col items-center justify-center text-slate-400 gap-1"
+                        class="h-24 rounded-xl bg-slate-200/60 animate-pulse border border-slate-200 flex flex-col items-center justify-center text-slate-400 gap-1"
                     >
-                        <span class="text-base">🎨</span>
-                        <span class="text-[10px] font-mono">画面 #{{ n }} 运算中</span>
+                        <span class="text-sm">🎨</span>
+                        <span class="text-[10px] font-mono">#{{ n }} 运算中</span>
                     </div>
                 </div>
 
@@ -522,7 +526,8 @@ const currentFocusedImage = computed(() => {
 const gridColumnsClass = computed(() => {
     const count = props.results.length
     if (count <= 1) return 'grid-cols-1'
-    return 'grid-cols-1 sm:grid-cols-2'
+    if (count <= 4) return 'grid-cols-1 sm:grid-cols-2'
+    return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
 })
 
 watch(

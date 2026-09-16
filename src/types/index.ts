@@ -11,6 +11,7 @@ export interface GenerateRequest {
     resolution?: string
     maxRetries?: number
     numOutputs?: number
+    forceParallel?: boolean
 }
 
 export type GenerateProgressCallback = (imageUrls: string[], completedCount: number, totalCount: number) => void

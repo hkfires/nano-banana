@@ -31,10 +31,39 @@ for (const entries of Object.values(config.gptImageData)) {
 assert.equal(config.resolveGptImageSize('1:1', '2K'), '2048x2048')
 assert.equal(config.resolveModelFamily('google/gemini-3.1-flash-image-preview'), 'gemini-31-flash-image')
 assert.equal(config.resolveModelFamily('grok-imagine-image-2.0'), 'grok-imagine-image-2.0')
+assert.equal(config.resolveModelFamily('x-ai/grok-2-image'), 'grok-imagine-image')
+assert.equal(config.resolveModelFamily('grok-imagine'), 'grok-imagine-image')
 assert.equal(config.resolveModelFamily('gemini-3.1-flash-lite-image'), 'unsupported')
+assert.equal(config.resolveModelFamily('gpt-image-2.5-super'), 'gpt-image-2.5')
+assert.equal(config.resolveModelFamily('openai/gpt-image-2.5-super'), 'gpt-image-2.5')
+assert.equal(config.resolveModelFamily('gpt-image-2.5-flare'), 'gpt-image-2.5')
+assert.equal(config.resolveModelFamily('openai/gpt-5.4-image-2'), 'gpt-image-2')
+assert.equal(config.resolveModelFamily('grok-imagine-video'), 'unsupported')
+assert.equal(config.resolveModelFamily('grok-imagine-video-1.5'), 'unsupported')
+assert.equal(config.resolveModelFamily('x-ai/grok-imagine-video'), 'unsupported')
+assert.equal(config.usesImagesApi('grok-imagine-video'), false)
+
+const imageModels = load('src/config/imageModels.ts')
+assert.equal(imageModels.isImageModel('grok-imagine-video'), false)
+assert.equal(imageModels.isImageModel('grok-imagine-video-1.5'), false)
+assert.equal(imageModels.isImageModel('google/veo-2'), false)
+assert.equal(imageModels.isImageModel('openai/sora'), false)
+assert.equal(imageModels.isImageModel('gpt-image-2.5-super'), true)
+assert.equal(imageModels.isImageModel('openai/gpt-image-2.5-super'), true)
+assert.equal(imageModels.isImageModel('openai/gpt-5.4-image-2'), true)
+assert.equal(imageModels.isImageModel('x-ai/grok-2-image'), true)
+assert.equal(imageModels.isImageModel('grok-imagine-image'), true)
 assert.ok(config.getModelCapability('gemini-3.1-flash-image').imageSizeOptions.some(x => x.value === '512'))
 assert.ok(!config.getAspectRatioOptions('grok-imagine-image-quality').some(x => x.value === '21:9'))
-assert.ok(config.getAspectRatioOptions('grok-imagine-image-2.0').some(x => x.value === '21:9'))
+assert.ok(!config.getAspectRatioOptions('grok-imagine-image-2.0').some(x => x.value === '21:9'))
+assert.ok(!config.getAspectRatioOptions('grok-imagine-image').some(x => x.value === '2:1'))
+assert.ok(!config.getAspectRatioOptions('grok-imagine-image').some(x => x.value === '19.5:9'))
+assert.equal(config.grokImageData['1k']['16:9'].width, 1280)
+assert.equal(config.grokImageData['1k']['16:9'].height, 720)
+assert.equal(config.grokImageData['1k']['9:16'].width, 720)
+assert.equal(config.grokImageData['1k']['9:16'].height, 1280)
+assert.equal(config.grokImageData['2k']['16:9'].width, 2816)
+assert.equal(config.grokImageData['2k']['16:9'].height, 1584)
 assert.equal(config.normalizeModelImageSettings('gpt-image-2', { imageSize: 'bad' }).imageSize, '1K')
 
 const api = load('src/services/api.ts')
@@ -119,6 +148,39 @@ global.fetch = async (url, options) => {
         assert.equal(chatMultiRes.imageUrls.length, 2)
         assert.ok(progressEvents.length >= 1)
         assert.equal(progressEvents.at(-1).total, 2)
+
+        // 验证强制并发模式：即使对于 Images API 模型，开启 forceParallel 时也发起并发独立请求而非单个批处理请求
+        const parallelFetchCalls = []
+        global.fetch = async (url, options) => {
+            parallelFetchCalls.push({ url, ...options })
+            return new Response(JSON.stringify({ data: [{ b64_json: 'parallel_img' }] }))
+        }
+        const parallelRes = await api.generateImages({ ...base, model: 'gpt-image-2', numOutputs: 2, forceParallel: true })
+        assert.equal(parallelRes.imageUrls.length, 2)
+        assert.equal(parallelFetchCalls.length, 2)
+        for (const call of parallelFetchCalls) {
+            const parsed = JSON.parse(call.body)
+            assert.equal(parsed.n, undefined)
+        }
+
+        // 验证 Grok 16:9 比例及任意 grok 模型正常传递 aspect_ratio: '16:9'
+        global.fetch = async (url, options) => {
+            requests.push({ url, ...options })
+            return new Response(JSON.stringify({ data: [{ b64_json: 'grok_img' }] }))
+        }
+        await api.generateImage({ ...base, model: 'x-ai/grok-2-image', aspectRatio: '16:9' })
+        const grokReqBody = JSON.parse(requests.at(-1).body)
+        assert.equal(grokReqBody.aspect_ratio, '16:9')
+        assert.equal(grokReqBody.size, undefined)
+
+        // 验证通用/未识别模型也支持传递 aspectRatio (Chat Completions 兼容)
+        global.fetch = async (url, options) => {
+            requests.push({ url, ...options })
+            return new Response(JSON.stringify({ choices: [{ message: { content: 'data:image/png;base64,custom' } }] }))
+        }
+        await api.generateImage({ ...base, model: 'custom-image-model', aspectRatio: '9:19.5' })
+        const customReqBody = JSON.parse(requests.at(-1).body)
+        assert.equal(customReqBody.aspect_ratio, '9:19.5')
 
         console.log('Image settings, request tests, and retry options passed')
     } finally { global.fetch = originalFetch }

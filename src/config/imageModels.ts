@@ -7,44 +7,92 @@ import { resolveModelFamily, getModelCapability } from './modelCapabilities'
 import type { ApiModel, ModelOption } from '../types'
 
 /**
- * 严格判断某个模型是否为“图像生成/编辑模型”。
- * 非图像模型（纯文本对话、代码模型、嵌入模型等）将一律排除。
+ * 官方及主流 AI 图像生成模型精准白名单规则表。
+ * 只有明确匹配生图模型标识且排除音视频/文本的模型才会被收录。
+ */
+export const IMAGE_MODEL_WHITELIST_PATTERNS: RegExp[] = [
+    // 1. Google Gemini & Imagen 生图系列
+    /^gemini-2\.5-flash-image/i,
+    /^gemini-3-pro-image/i,
+    /^gemini-3\.1-flash-image/i,
+    /^imagen-3/i,
+    /^imagen-4/i,
+
+    // 2. OpenAI 生图系列 (覆盖 gpt-image-2, gpt-image-2.5 及其 super/flare/mini 等衍生子型号, dall-e)
+    /gpt.*image/i,
+    /^dall-e/i,
+
+    // 3. xAI Grok 专属生图系列 (严密排他，绝不包含 video)
+    /^grok-imagine-image/i,
+    /^grok-imagine-image-quality/i,
+    /^grok-imagine-image-2\.0/i,
+    /^grok-2-image/i,
+
+    // 4. Black Forest Labs - Flux 系列
+    /^flux(-1)?(-schnell|-dev|-pro|\.1-pro|-ultra)?/i,
+
+    // 5. Stability AI - SD / SDXL 系列
+    /^sdxl/i,
+    /^stable-diffusion(-3|-xl)?/i,
+
+    // 6. 其他主流知名生图模型
+    /^recraft(-v3)?/i,
+    /^ideogram/i,
+    /^midjourney/i,
+    /^seedream/i
+]
+
+/**
+ * 严格基于白名单判断某个模型是否为“图像生成/编辑模型”。
+ * 视频模型、纯文本对话、代码模型、嵌入模型等一律直接排除。
  */
 export function isImageModel(model: ApiModel | ModelOption | string): boolean {
-    const id = (typeof model === 'string' ? model : model.id || '').trim().toLowerCase()
-    if (!id) return false
+    const rawId = (typeof model === 'string' ? model : model.id || '').trim().toLowerCase()
+    if (!rawId) return false
 
-    // 1. 如果 modelCapabilities 能够识别出具体的生图家族，直接确认是生图模型
-    if (resolveModelFamily(id) !== 'unsupported') {
-        return true
-    }
-
-    // 2. 严格排除常见纯文本、代码、嵌入模型（黑名单）
-    const pureTextDenyRegex = /deepseek-chat|deepseek-reasoner|deepseek-coder|deepseek|llama|claude-3-opus|claude-3-sonnet|claude-3-haiku|claude-2|claude|mistral|mixtral|qwen|gemma|chatglm|baichuan|embedding|embed|whisper|tts|rerank|audio|speech|moderation|instruct(?!\/)|gpt-3.5|text-davinci/i
-    if (pureTextDenyRegex.test(id)) {
+    // 0. 硬性安全门卫：绝不允许任何视频、音频、嵌入、代码模型混入
+    if (/video|audio|sound|voice|speech|embed|rerank|whisper|tts/i.test(rawId)) {
         return false
     }
 
-    // 3. 检查模型元数据 capabilities 标记 (兼容 OpenRouter 与标准 OpenAI 扩展格式)
+    // 提取模型 ID 核心名称 (剥离可能存在的厂商前缀，例如 "x-ai/grok-2-image" -> "grok-2-image")
+    const segments = rawId.split('/')
+    const modelName = segments[segments.length - 1] || rawId
+
+    // 1. 如果能够识别为内置生图模型家族，白名单通过
+    if (resolveModelFamily(rawId) !== 'unsupported') {
+        return true
+    }
+
+    // 2. 严格核对生图模型白名单正则表
+    const matchedWhitelist = IMAGE_MODEL_WHITELIST_PATTERNS.some(pattern =>
+        pattern.test(modelName) || pattern.test(rawId)
+    )
+    if (matchedWhitelist) {
+        return true
+    }
+
+    // 3. 针对第三方端点元数据明确标记为图像生成能力且非文本/视频的模型
     if (typeof model !== 'string') {
         const caps = (model as ApiModel).capabilities
         if (caps && typeof caps === 'object') {
-            if ((caps as Record<string, unknown>).image === true) return true
-            if ((caps as Record<string, unknown>).images === true) return true
+            if ((caps as Record<string, unknown>).image === true || (caps as Record<string, unknown>).images === true) {
+                // 确保不是纯聊天/文本模型
+                const isNotChat = !/chat|text|instruct/i.test(modelName)
+                if (isNotChat) return true
+            }
         }
 
         const tags = (model as Record<string, unknown>).tags
         if (Array.isArray(tags)) {
-            const hasImageTag = tags.some(tag =>
-                typeof tag === 'string' && /^(image|text-to-image|image-to-image|t2i|i2i|diffusion|flux)$/i.test(tag.trim())
+            const hasImageGenTag = tags.some(tag =>
+                typeof tag === 'string' && /^(text-to-image|image-to-image|t2i|i2i|diffusion)$/i.test(tag.trim())
             )
-            if (hasImageTag) return true
+            if (hasImageGenTag) return true
         }
     }
 
-    // 4. 严格的图像关键词匹配 (涵盖主流主流生图架构与模型)
-    const imageKeywordsRegex = /image|imagen|dall-e|flux|stable-diffusion|sdxl|diffusion|recraft|ideogram|midjourney|paint|drawing/i
-    return imageKeywordsRegex.test(id)
+    return false
 }
 
 /**

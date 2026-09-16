@@ -53,6 +53,7 @@ export async function generateImage(request: GenerateRequest, customMaxRetries?:
 
             if (request.aspectRatio) {
                 imageConfig.aspect_ratio = request.aspectRatio
+                payload.aspect_ratio = request.aspectRatio
             }
 
             // 如果模型支持专属尺寸或搜索工具，添加到载荷
@@ -155,7 +156,7 @@ export async function generateImages(
     customMaxRetries?: number,
     onProgress?: (imageUrls: string[], completedCount: number, totalCount: number) => void
 ): Promise<GenerateResponse> {
-    const totalCount = Math.max(1, Math.min(4, Math.floor(request.numOutputs ?? 1)))
+    const totalCount = Math.max(1, Math.min(8, Math.floor(request.numOutputs ?? 1)))
     const modelId = request.model?.trim() || DEFAULT_MODEL_ID
 
     // 单张生成直接调用基础方法
@@ -166,8 +167,8 @@ export async function generateImages(
     }
 
     // 针对 Images API 模型 (OpenAI GPT-Image 等)
-    // 很多 Images API 原生支持通过 n 参数单次直接返回多张图片
-    if (usesImagesApi(modelId)) {
+    // 很多 Images API 原生支持通过 n 参数单次直接返回多张图片（若未开启强制并发）
+    if (usesImagesApi(modelId) && !request.forceParallel) {
         try {
             console.log(`尝试通过 Images API 原生批量生成 ${totalCount} 张图片...`)
             const batchRequest = { ...request, numOutputs: totalCount }
@@ -279,17 +280,21 @@ async function createWithImagesApi(request: GenerateRequest, apiBase: string, mo
         payload.n = request.numOutputs
     }
 
-    if (getModelCapability(modelId)?.provider === 'xAI') {
+    const isXAI = getModelCapability(modelId)?.provider === 'xAI' || modelId.toLowerCase().includes('grok')
+
+    if (isXAI) {
         if (request.aspectRatio) {
             payload.aspect_ratio = request.aspectRatio
         }
-        if (getModelCapability(modelId)?.supportsResolution && request.resolution) {
+        if (request.resolution) {
             payload.resolution = request.resolution
         }
     } else {
         const size = resolveImageSize(request.aspectRatio, request.imageSize)
         if (size) {
             payload.size = size
+        } else if (request.aspectRatio) {
+            payload.aspect_ratio = request.aspectRatio
         }
         if (request.quality) {
             payload.quality = request.quality
@@ -310,7 +315,8 @@ async function createWithImagesApi(request: GenerateRequest, apiBase: string, mo
 
 async function editWithImagesApi(request: GenerateRequest, apiBase: string, modelId: string): Promise<string[]> {
     const capability = getModelCapability(modelId)
-    if (capability?.provider === 'xAI') {
+    const isXAI = capability?.provider === 'xAI' || modelId.toLowerCase().includes('grok')
+    if (isXAI) {
         const payload: Record<string, unknown> = { model: modelId, prompt: request.prompt }
         if (request.numOutputs && request.numOutputs > 1) {
             payload.n = request.numOutputs
@@ -319,7 +325,7 @@ async function editWithImagesApi(request: GenerateRequest, apiBase: string, mode
         if (images.length === 1) payload.image = images[0]
         else payload.images = images
         if (request.aspectRatio) payload.aspect_ratio = request.aspectRatio
-        if (capability.supportsResolution && request.resolution) payload.resolution = request.resolution
+        if (request.resolution) payload.resolution = request.resolution
         const response = await fetch(resolveOpenAIImagesEndpoint(apiBase, 'edits'), {
             method: 'POST',
             headers: {

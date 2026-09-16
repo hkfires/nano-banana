@@ -227,43 +227,49 @@
                             <span>提示：若当前模型来自 Codex 反代渠道，尺寸、分辨率与质量参数均不会生效。</span>
                         </div>
 
-                        <!-- 4. 底部内嵌控制栏（比例 / 参数 / 主生成按钮） -->
-                        <div class="mt-4 pt-3.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2.5">
-                            <!-- 左侧：比例与高级参数胶囊 -->
+                        <!-- 4. 参数配置栏 (独立成行，无论参数多短绝不与生成按钮混在同一行) -->
+                        <div class="mt-4 pt-3.5 border-t border-slate-100">
                             <div class="flex flex-wrap items-center gap-1.5 text-xs">
-                                <!-- 常用比例按钮组 -->
-                                <div class="flex items-center gap-0.5 bg-slate-100 p-0.5 rounded-lg">
-                                    <button
-                                        v-for="r in commonAspectRatios"
-                                        :key="r.ratio"
-                                        @click="setAspectRatio(r.ratio)"
-                                        :class="[
-                                            'px-2 py-0.5 rounded-md text-xs font-medium transition-all',
-                                            currentAspectRatio === r.ratio
-                                                ? 'bg-white text-slate-900 shadow-xs font-semibold'
-                                                : 'text-slate-500 hover:text-slate-800'
-                                        ]"
-                                    >
-                                        {{ r.ratio }}
-                                    </button>
+                                <!-- 比例与分辨率下拉列表 -->
+                                <div class="relative flex items-center">
+                                    <div class="relative">
+                                        <select
+                                            :value="currentAspectRatio"
+                                            @change="setAspectRatio(($event.target as HTMLSelectElement).value)"
+                                            class="block h-7 pl-2.5 pr-6 py-0 bg-slate-100 hover:bg-slate-200/70 border border-slate-200/80 rounded-lg text-xs font-medium text-slate-700 font-sans appearance-none cursor-pointer focus:outline-none transition-colors shadow-2xs"
+                                            title="画面比例与分辨率"
+                                        >
+                                            <option
+                                                v-for="opt in availableAspectRatios"
+                                                :key="opt.value"
+                                                :value="opt.value"
+                                            >
+                                                {{ opt.label }}
+                                            </option>
+                                        </select>
+                                        <div class="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 text-[9px]">
+                                            ▼
+                                        </div>
+                                    </div>
                                 </div>
 
-                                <!-- 单次生成张数胶囊 -->
-                                <div class="flex items-center gap-0.5 bg-slate-100 p-0.5 rounded-lg" title="单次生成图片张数">
-                                    <span class="text-[10px] text-slate-400 pl-1 select-none font-medium">张数</span>
-                                    <button
-                                        v-for="count in [1, 2, 4]"
-                                        :key="count"
-                                        @click="batchCount = count"
-                                        :class="[
-                                            'px-2 py-0.5 rounded-md text-xs font-medium transition-all',
-                                            batchCount === count
-                                                ? 'bg-white text-slate-900 shadow-xs font-semibold'
-                                                : 'text-slate-500 hover:text-slate-800'
-                                        ]"
-                                    >
-                                        {{ count }}张
-                                    </button>
+                                <!-- 单次生成张数下拉列表 (1-8张) -->
+                                <div class="relative flex items-center">
+                                    <div class="relative">
+                                        <select
+                                            :value="batchCount"
+                                            @change="batchCount = Number(($event.target as HTMLSelectElement).value)"
+                                            class="block h-7 pl-2.5 pr-6 py-0 bg-slate-100 hover:bg-slate-200/70 border border-slate-200/80 rounded-lg text-xs font-medium text-slate-700 font-sans appearance-none cursor-pointer focus:outline-none transition-colors shadow-2xs"
+                                            title="单次生成图片张数 (1-8张)"
+                                        >
+                                            <option v-for="num in [1, 2, 3, 4, 5, 6, 7, 8]" :key="num" :value="num">
+                                                {{ num }} 张
+                                            </option>
+                                        </select>
+                                        <div class="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 text-[9px]">
+                                            ▼
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <!-- 清晰度档位 (若当前模型支持) -->
@@ -271,7 +277,7 @@
                                     <select
                                         :value="currentModelSettings.imageSize"
                                         @change="handleImageSizeChange(($event.target as HTMLSelectElement).value)"
-                                        class="block h-6 pl-2 pr-5 py-0 bg-slate-100 hover:bg-slate-200/70 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 appearance-none cursor-pointer focus:outline-none transition-colors"
+                                        class="block h-7 pl-2.5 pr-6 py-0 bg-slate-100 hover:bg-slate-200/70 border border-slate-200/80 rounded-lg text-xs font-medium text-slate-700 font-sans appearance-none cursor-pointer focus:outline-none transition-colors shadow-2xs"
                                     >
                                         <option v-for="opt in currentModelCapability.imageSizeOptions || []" :key="opt.value" :value="opt.value">
                                             {{ opt.label }}
@@ -287,7 +293,7 @@
                                     <select
                                         :value="currentModelSettings.quality"
                                         @change="handleQualityChange(($event.target as HTMLSelectElement).value)"
-                                        class="block h-6 pl-2 pr-5 py-0 bg-slate-100 hover:bg-slate-200/70 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 appearance-none cursor-pointer focus:outline-none transition-colors"
+                                        class="block h-7 pl-2.5 pr-6 py-0 bg-slate-100 hover:bg-slate-200/70 border border-slate-200/80 rounded-lg text-xs font-medium text-slate-700 font-sans appearance-none cursor-pointer focus:outline-none transition-colors shadow-2xs"
                                     >
                                         <option v-for="opt in currentModelCapability.qualityOptions || []" :key="opt.value" :value="opt.value">
                                             {{ opt.label }}
@@ -303,7 +309,7 @@
                                     <select
                                         :value="currentModelSettings.resolution"
                                         @change="handleResolutionChange(($event.target as HTMLSelectElement).value)"
-                                        class="block h-6 pl-2 pr-5 py-0 bg-slate-100 hover:bg-slate-200/70 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 appearance-none cursor-pointer focus:outline-none transition-colors"
+                                        class="block h-7 pl-2.5 pr-6 py-0 bg-slate-100 hover:bg-slate-200/70 border border-slate-200/80 rounded-lg text-xs font-medium text-slate-700 font-sans appearance-none cursor-pointer focus:outline-none transition-colors shadow-2xs"
                                     >
                                         <option v-for="opt in currentModelCapability.resolutionOptions || []" :key="opt.value" :value="opt.value">
                                             {{ opt.label }}
@@ -314,29 +320,56 @@
                                     </div>
                                 </div>
 
+                                <!-- 强制并发生成开关 -->
+                                <label
+                                    class="flex items-center gap-1.5 cursor-pointer text-xs font-medium text-slate-700 font-sans bg-slate-100 hover:bg-slate-200/70 px-2.5 h-7 rounded-lg transition-colors border border-slate-200/80 shadow-2xs"
+                                    title="多图并发请求，成片即显"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        v-model="forceParallel"
+                                        class="w-3.5 h-3.5 text-slate-900 border-slate-300 rounded focus:ring-0 cursor-pointer"
+                                    />
+                                    <span class="select-none">强制并发</span>
+                                </label>
+
                                 <!-- 谷歌搜索联网开关 (若当前模型支持) -->
                                 <label
                                     v-if="currentModelCapability?.supportsGoogleSearch"
-                                    class="flex items-center gap-1.5 cursor-pointer text-xs text-slate-600 bg-slate-100 hover:bg-slate-200/70 px-2 py-1 rounded-lg transition-colors"
+                                    class="flex items-center gap-1.5 cursor-pointer text-xs font-medium text-slate-700 font-sans bg-slate-100 hover:bg-slate-200/70 px-2.5 h-7 rounded-lg transition-colors border border-slate-200/80 shadow-2xs"
                                 >
                                     <input
                                         type="checkbox"
                                         :checked="currentModelSettings.enableGoogleSearch"
                                         @change="handleToggleGoogleSearch(($event.target as HTMLInputElement).checked)"
-                                        class="w-3.5 h-3.5 text-slate-900 border-slate-300 rounded"
+                                        class="w-3.5 h-3.5 text-slate-900 border-slate-300 rounded focus:ring-0 cursor-pointer"
                                     />
-                                    <span>Google 联网搜索</span>
+                                    <span class="select-none">Google 联网搜索</span>
                                 </label>
                             </div>
+                        </div>
 
-                            <!-- 右侧：生成操作按钮 (靠右保持平齐) -->
-                            <div class="flex items-center gap-2 ml-auto shrink-0">
+                        <!-- 5. 独立生成操作栏 (独占一行，永远位于参数栏下方) -->
+                        <div class="mt-3 pt-3 border-t border-slate-100/80 flex items-center justify-end gap-3">
+                            <!-- 状态提示 / 快捷键说明 (紧挨按钮左侧，视线高度集中) -->
+                            <div class="text-xs flex items-center gap-1.5 text-right">
+                                <span v-if="validationTip" class="text-amber-600 font-medium flex items-center gap-1">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span>
+                                    <span>{{ validationTip }}</span>
+                                </span>
+                                <span v-else class="text-slate-400 hidden sm:inline">
+                                    <kbd class="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-[10px] font-mono text-slate-600">Ctrl</kbd> + <kbd class="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-[10px] font-mono text-slate-600">Enter</kbd>
+                                </span>
+                            </div>
+
+                            <!-- 生成操作按钮 (紧随提示其后) -->
+                            <div class="flex items-center gap-2 shrink-0">
                                 <button
                                     v-if="activeWorkflow === 'text'"
                                     @click="handleTextToImageGenerate"
                                     :disabled="!canGenerateTextImage"
                                     :class="[
-                                        'px-5 py-2 rounded-xl font-medium text-xs sm:text-sm transition-all flex items-center gap-2 shadow-xs',
+                                        'px-6 py-2 rounded-xl font-medium text-xs sm:text-sm transition-all flex items-center gap-2 shadow-xs',
                                         canGenerateTextImage
                                             ? 'bg-slate-900 hover:bg-slate-800 text-white cursor-pointer active:scale-[0.98]'
                                             : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none'
@@ -345,7 +378,6 @@
                                     <span v-if="!isTextToImageLoading" class="flex items-center gap-1.5">
                                         <span>✨</span>
                                         <span>{{ batchCount > 1 ? `立即生成 (${batchCount}张)` : '立即生成' }}</span>
-                                        <span class="text-[10px] opacity-70 font-mono hidden sm:inline">(↵)</span>
                                     </span>
                                     <span v-else class="flex items-center gap-1.5">
                                         <svg class="w-3.5 h-3.5 animate-spin text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -360,7 +392,7 @@
                                     @click="handleGenerate"
                                     :disabled="!canGenerate"
                                     :class="[
-                                        'px-5 py-2 rounded-xl font-medium text-xs sm:text-sm transition-all flex items-center gap-2 shadow-xs',
+                                        'px-6 py-2 rounded-xl font-medium text-xs sm:text-sm transition-all flex items-center gap-2 shadow-xs',
                                         canGenerate
                                             ? 'bg-slate-900 hover:bg-slate-800 text-white cursor-pointer active:scale-[0.98]'
                                             : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none'
@@ -369,7 +401,6 @@
                                     <span v-if="!isLoading" class="flex items-center gap-1.5">
                                         <span>🖼️</span>
                                         <span>{{ batchCount > 1 ? `开始重塑 (${batchCount}张)` : '开始图文重塑' }}</span>
-                                        <span class="text-[10px] opacity-70 font-mono hidden sm:inline">(↵)</span>
                                     </span>
                                     <span v-else class="flex items-center gap-1.5">
                                         <svg class="w-3.5 h-3.5 animate-spin text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -379,11 +410,6 @@
                                     </span>
                                 </button>
                             </div>
-                        </div>
-
-                        <!-- 缺省条件微提示 -->
-                        <div v-if="validationTip" class="text-right mt-2 text-xs text-slate-400">
-                            {{ validationTip }}
                         </div>
                     </div>
                 </div>
@@ -440,7 +466,7 @@ import { styleTemplates } from './data/templates'
 import { LocalStorage } from './utils/storage'
 import type { GenerateRequest, ModelOption, HistoryRecord } from './types'
 import { DEFAULT_API_ENDPOINT, DEFAULT_MODEL_ID, normalizeApiBase } from './config/api'
-import { getModelCapability, normalizeModelImageSettings, resolveModelFamily } from './config/modelCapabilities'
+import { getAspectRatioOptions, getModelCapability, normalizeModelImageSettings, resolveModelFamily } from './config/modelCapabilities'
 import { filterAndProcessRemoteModels, isImageModel } from './config/imageModels'
 import type { ModelFamily, ModelImageSettings as ModelImageSettingsType } from './config/modelCapabilities'
 
@@ -452,12 +478,14 @@ const savedInitEndpoint = normalizeApiBase(LocalStorage.getApiEndpoint()) || DEF
 const savedInitModel = LocalStorage.getModelId() || ''
 const savedInitMaxRetries = LocalStorage.getMaxRetries()
 const savedInitBatchCount = LocalStorage.getBatchCount()
+const savedInitForceParallel = LocalStorage.getForceParallel(savedInitModel)
 
 const apiKey = ref(savedInitKey)
 const apiEndpoint = ref(savedInitEndpoint)
 const selectedModel = ref(savedInitModel)
 const maxRetries = ref(savedInitMaxRetries)
 const batchCount = ref(savedInitBatchCount)
+const forceParallel = ref(savedInitForceParallel)
 const showApiModal = ref(false)
 
 const modelOptions = ref<ModelOption[]>([])
@@ -488,12 +516,15 @@ const showCodexProxyHint = computed(() => {
     return family === 'gpt-image-2' || family === 'gpt-image-2.5'
 })
 
-const commonAspectRatios = [
-    { ratio: '1:1', label: '方形' },
-    { ratio: '16:9', label: '横屏' },
-    { ratio: '9:16', label: '竖屏' },
-    { ratio: '4:3', label: '4:3' },
-    { ratio: '3:4', label: '3:4' }
+const defaultAspectRatios = [
+    { value: '1:1', label: '1:1 - 1024x1024' },
+    { value: '16:9', label: '16:9 - 1344x768' },
+    { value: '9:16', label: '9:16 - 768x1344' },
+    { value: '4:3', label: '4:3 - 1184x864' },
+    { value: '3:4', label: '3:4 - 864x1184' },
+    { value: '3:2', label: '3:2 - 1248x832' },
+    { value: '2:3', label: '2:3 - 832x1248' },
+    { value: '21:9', label: '21:9 - 1536x672' }
 ]
 
 let hasSyncedInitialEndpoint = false
@@ -503,6 +534,10 @@ onMounted(() => {
 
     // 启动时直接从本地缓存恢复端点真实图像模型
     restoreModelOptionsFromCache(apiEndpoint.value)
+
+    if (selectedModel.value.trim()) {
+        forceParallel.value = LocalStorage.getForceParallel(selectedModel.value.trim())
+    }
 
     hasSyncedInitialEndpoint = true
 
@@ -541,6 +576,14 @@ watch(
     batchCount,
     (val: number) => {
         LocalStorage.saveBatchCount(val)
+    }
+)
+
+watch(
+    forceParallel,
+    (val: boolean) => {
+        const model = selectedModel.value.trim()
+        LocalStorage.saveForceParallel(val, model)
     }
 )
 
@@ -590,6 +633,9 @@ watch(
         const trimmed = newModel.trim()
         if (trimmed) {
             LocalStorage.saveModelId(trimmed)
+            // 恢复该特定模型专属的强制并发选项
+            forceParallel.value = LocalStorage.getForceParallel(trimmed)
+
             // 关键：切换模型时立即主动同步并规范化该模型的专有配置，立刻触发视图响应式刷新！
             const family = resolveModelFamily(trimmed)
             if (family !== 'unsupported') {
@@ -778,10 +824,12 @@ const validationTip = computed(() => {
 const currentModelFamily = computed(() => resolveModelFamily(selectedModel.value))
 const currentModelCapability = computed(() => getModelCapability(selectedModel.value))
 
+const unsupportedSettings = ref<ModelImageSettingsType>({ aspectRatio: '1:1' })
+
 const currentModelSettings = computed(() => {
     const family = currentModelFamily.value
     if (family === 'unsupported') {
-        return { aspectRatio: '1:1' }
+        return unsupportedSettings.value
     }
 
     const cached = modelImageSettingsMap.value[family]
@@ -789,6 +837,15 @@ const currentModelSettings = computed(() => {
 })
 
 const currentAspectRatio = computed(() => currentModelSettings.value.aspectRatio || '1:1')
+
+const availableAspectRatios = computed(() => {
+    const family = currentModelFamily.value
+    if (family === 'unsupported') {
+        return defaultAspectRatios
+    }
+    const sizeOrResolution = currentModelSettings.value.imageSize || currentModelSettings.value.resolution
+    return getAspectRatioOptions(family, sizeOrResolution)
+})
 
 const setAspectRatio = (ratio: string) => {
     handleModelSettingsUpdate({ ...currentModelSettings.value, aspectRatio: ratio })
@@ -812,7 +869,10 @@ const handleToggleGoogleSearch = (enableGoogleSearch: boolean) => {
 
 const handleModelSettingsUpdate = (settings: ModelImageSettingsType) => {
     const family = currentModelFamily.value
-    if (family === 'unsupported') return
+    if (family === 'unsupported') {
+        unsupportedSettings.value = { ...settings }
+        return
+    }
 
     const normalized = normalizeModelImageSettings(family, settings)
     modelImageSettingsMap.value = {
@@ -824,9 +884,15 @@ const handleModelSettingsUpdate = (settings: ModelImageSettingsType) => {
 
 const applyModelSettingsToRequest = (request: GenerateRequest) => {
     const capability = currentModelCapability.value
-    if (!capability) return
-
     const settings = currentModelSettings.value
+
+    // 若当前模型未匹配到特定模型族，保证所选的 aspectRatio 依然能装配到请求中！
+    if (!capability) {
+        if (settings.aspectRatio) {
+            request.aspectRatio = settings.aspectRatio
+        }
+        return
+    }
 
     if (capability.supportsAspectRatio) {
         request.aspectRatio = settings.aspectRatio
@@ -862,7 +928,8 @@ const handleTextToImageGenerate = async () => {
             endpoint: apiEndpoint.value.trim() || DEFAULT_API_ENDPOINT,
             model: selectedModel.value.trim(),
             maxRetries: maxRetries.value,
-            numOutputs: batchCount.value
+            numOutputs: batchCount.value,
+            forceParallel: forceParallel.value
         }
 
         applyModelSettingsToRequest(request)
@@ -915,7 +982,8 @@ const handleGenerate = async () => {
             endpoint: apiEndpoint.value.trim() || DEFAULT_API_ENDPOINT,
             model: selectedModel.value.trim(),
             maxRetries: maxRetries.value,
-            numOutputs: batchCount.value
+            numOutputs: batchCount.value,
+            forceParallel: forceParallel.value
         }
 
         applyModelSettingsToRequest(request)

@@ -12,6 +12,7 @@ export class LocalStorage {
     private static readonly MODEL_IMAGE_SETTINGS = 'nano-banana-model-image-settings'
     private static readonly MAX_RETRIES = 'nano-banana-max-retries'
     private static readonly BATCH_COUNT = 'nano-banana-batch-count'
+    private static readonly FORCE_PARALLEL = 'nano-banana-force-parallel'
 
     // 保存API密钥
     static saveApiKey(apiKey: string): void {
@@ -120,27 +121,80 @@ export class LocalStorage {
         }
     }
 
-    // 保存生成图片张数 (1-4)
+    // 保存生成图片张数 (1-8)
     static saveBatchCount(count: number): void {
         try {
-            const val = Math.min(4, Math.max(1, Math.floor(Number(count) || 1)))
+            const val = Math.min(8, Math.max(1, Math.floor(Number(count) || 1)))
             localStorage.setItem(this.BATCH_COUNT, String(val))
         } catch (error) {
             console.warn('无法保存生成张数到本地存储:', error)
         }
     }
 
-    // 获取生成图片张数 (默认 1)
+    // 获取生成图片张数 (默认 1, 支持 1-8)
     static getBatchCount(): number {
         try {
             const val = localStorage.getItem(this.BATCH_COUNT)
             if (!val) return 1
             const count = parseInt(val, 10)
-            return Number.isFinite(count) && count >= 1 && count <= 4 ? count : 1
+            return Number.isFinite(count) && count >= 1 && count <= 8 ? count : 1
         } catch (error) {
             console.warn('无法从本地存储读取生成张数:', error)
             return 1
         }
+    }
+
+    // 保存强制并发开关 (支持指定特定模型)
+    static saveForceParallel(enabled: boolean, modelId?: string): void {
+        try {
+            if (modelId && modelId.trim()) {
+                const key = modelId.toLowerCase().trim()
+                const map = this.getModelForceParallelMap()
+                map[key] = enabled
+                localStorage.setItem(this.FORCE_PARALLEL, JSON.stringify(map))
+            } else {
+                localStorage.setItem(this.FORCE_PARALLEL, enabled ? 'true' : 'false')
+            }
+        } catch (error) {
+            console.warn('无法保存强制并发设置到本地存储:', error)
+        }
+    }
+
+    // 获取强制并发开关 (支持指定特定模型，默认 false)
+    static getForceParallel(modelId?: string): boolean {
+        try {
+            const raw = localStorage.getItem(this.FORCE_PARALLEL)
+            if (!raw) return false
+
+            // 如果传了具体模型 ID，先尝试从模型映射中读取
+            if (modelId && modelId.trim()) {
+                const key = modelId.toLowerCase().trim()
+                const map = this.getModelForceParallelMap()
+                if (key in map) {
+                    return Boolean(map[key])
+                }
+            }
+
+            // 兼容旧版布尔值字符串
+            return raw === 'true'
+        } catch (error) {
+            console.warn('无法从本地存储读取强制并发设置:', error)
+            return false
+        }
+    }
+
+    private static getModelForceParallelMap(): Record<string, boolean> {
+        const raw = localStorage.getItem(this.FORCE_PARALLEL)
+        if (!raw) return {}
+        try {
+            const parsed = JSON.parse(raw)
+            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                return parsed as Record<string, boolean>
+            }
+        } catch {
+            // 如果历史数据只是简单的 'true' 或 'false' 字符串，返回空对象供字典使用
+        }
+        return {}
     }
 
     // 保存模型列表缓存
