@@ -48,6 +48,30 @@ export const styleTemplates: StyleTemplate[] = [
         icon: '🎞️',
         prompt: 'Cinematic live-action photorealistic adaptation of the uploaded subject. Shot on Arri Alexa with 35mm anamorphic lens, Kodachrome film color grading, authentic skin texture and fabric weave details, dramatic natural golden hour rim light, soft bokeh, cinematic atmosphere, award-winning movie still.',
         description: '胶片电影感重塑，呈现35mm变形宽银幕镜头的真实质感、胶片颗粒与电影光影'
+    },
+    {
+        id: 'pixar-3d',
+        title: '🎬 皮克斯 3D 动画主角',
+        badge: '爆款出圈',
+        icon: '🍿',
+        prompt: 'Transform the subject in the reference image into a lead character of an award-winning Pixar/Disney 3D animated film. Preserve recognizable facial identity, expression, hairstyle, and wardrobe colors from the uploaded picture while adapting them into appealing stylized 3D proportions with large expressive eyes and friendly micro-expressions. Soft subsurface scattering skin, realistic strand-by-strand hair texture, high-detail cloth weave, warm cinematic rim lighting, shallow depth of field, Octane render, ultra-detailed 8k.',
+        description: '将参考图的人物或宠物化身皮克斯动画主角，眼神生动灵性，质感细腻温暖'
+    },
+    {
+        id: 'wooly-plushie',
+        title: '🧸 软萌治愈毛绒玩偶',
+        badge: '萌系潮玩',
+        icon: '🧶',
+        prompt: 'Recreate the uploaded character into an adorable handcrafted wool felt plushie doll inspired by Jellycat aesthetic. Ultra-soft fuzzy mohair texture with visible delicate fiber fuzz, shiny black button bead eyes, cute chibi proportions while retaining all key clothing colors and iconic accessories of the original subject. Placed on a warm wooden craft table bathed in soft natural morning sunlight, macro photography, shallow depth of field, cozy and heartwarming vibe.',
+        description: '将角色重塑为触感极其软糯的羊毛毡手工玩偶，毛绒质感与豆豆眼治愈力拉满'
+    },
+    {
+        id: 'papercut-lightbox',
+        title: '🏮 多层光影纸雕艺术',
+        badge: '立体透光',
+        icon: '✂️',
+        prompt: 'Transform the uploaded scene and character into an exquisite multi-layered 3D papercut lightbox artwork. Intricate laser-cut paper contours arranged in distinct depth planes to construct the subject and background. Warm amber and soft turquoise LED backlighting softly glowing through the cutout layers, casting delicate layered shadows and silhouette depths. Tactile textured cardstock paper edges, shadow box frame, studio macro photography, elegant craftsmanship, mesmerizing art piece.',
+        description: '以多层立体激光镂空纸雕重塑画面，层层叠进的纸张边缘与温润背光极具艺术感'
     }
 ]
 
@@ -133,5 +157,14 @@ export const presetPrompts: PresetPrompt[] = [
         badge: '像素怀旧',
         prompt: '16-bit isometric retro pixel art of a cozy corner coffee shop on a quiet rainy afternoon. Steaming mugs on wooden tables, warm interior amber glow, dripping window panes, charming nostalgic pixel details, dithering shading, cozy lofi vibes.',
         description: '宁静雨后的街角像素咖啡馆，暖光氤氲与复古怀旧细节拉满'
+    },
+    {
+        id: 'dunhuang-nine-colored-deer',
+        title: '敦煌鎏金云海九色鹿',
+        category: 'fantasy',
+        icon: '🦌',
+        badge: '东方神韵',
+        prompt: 'A breathtaking mythical nine-colored divine deer standing majestically atop rolling gilded clouds, inspired by ancient Dunhuang Mogao murals. Flowing ethereal silk ribbons in mineral turquoise and cinnabar, luminous glowing antlers inlaid with shimmering gold leaf filigree. Floating lotus petals, sacred celestial halos, atmospheric mystical mist, intricate mineral pigment textures, oriental mythical masterpiece, 8k ultra-detailed.',
+        description: '融合敦煌壁画与新中式美学的九色神鹿，踏着鎏金云海与飘逸丝带，尽显东方神韵'
     }
 ]
