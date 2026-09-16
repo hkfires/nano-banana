@@ -326,7 +326,7 @@
                 </div>
                 <h4 class="text-xs sm:text-sm font-semibold text-slate-700 mb-1">作品展示画廊</h4>
                 <p class="text-xs text-slate-400 max-w-xs leading-relaxed">
-                    在左侧设置描述词并可选择单次生成 1~4 张，生成的高清画面将在此集中展示与比对。
+                    配置提示词与生成参数（单次最高可生成 8 张），生成的高清画面将在此集中展示与比对。
                 </p>
             </div>
         </div>
