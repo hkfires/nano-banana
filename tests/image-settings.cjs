@@ -90,6 +90,36 @@ global.fetch = async (url, options) => {
         assert.ok(singleFailed)
         assert.equal(singleAttemptCount, 1)
 
+        // 验证 Images API 批量生成：传递 numOutputs: 2 时 payload.n 为 2 且解析所有图片
+        global.fetch = async (url, options) => {
+            requests.push({ url, ...options })
+            return new Response(JSON.stringify({ data: [{ b64_json: 'img_a' }, { b64_json: 'img_b' }] }))
+        }
+        const multiBatchRes = await api.generateImages({ ...base, numOutputs: 2 })
+        assert.equal(multiBatchRes.imageUrls.length, 2)
+        assert.equal(multiBatchRes.imageUrls[0], 'data:image/png;base64,img_a')
+        assert.equal(multiBatchRes.imageUrls[1], 'data:image/png;base64,img_b')
+        assert.equal(JSON.parse(requests.at(-1).body).n, 2)
+
+        // 验证 Chat Completions 协议并发生成多图与进度回调
+        const progressEvents = []
+        global.fetch = async (url, options) => {
+            requests.push({ url, ...options })
+            return new Response(JSON.stringify({
+                choices: [{ message: { content: 'data:image/png;base64,chat_multi_image' } }]
+            }))
+        }
+        const chatMultiRes = await api.generateImages(
+            { ...base, model: 'gemini-2.5-flash-image', numOutputs: 2 },
+            1,
+            (urls, done, total) => {
+                progressEvents.push({ count: urls.length, done, total })
+            }
+        )
+        assert.equal(chatMultiRes.imageUrls.length, 2)
+        assert.ok(progressEvents.length >= 1)
+        assert.equal(progressEvents.at(-1).total, 2)
+
         console.log('Image settings, request tests, and retry options passed')
     } finally { global.fetch = originalFetch }
 })().catch(error => { console.error(error); process.exitCode = 1 })

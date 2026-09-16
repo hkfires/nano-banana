@@ -85,30 +85,33 @@ export async function generateImage(request: GenerateRequest, customMaxRetries?:
             const data = await response.json()
 
             // 统一使用标准 OpenAI 格式响应处理
-            if (!data.choices?.[0]?.message) {
+            if (!Array.isArray(data.choices) || data.choices.length === 0) {
                 throw new Error('Invalid response from API')
             }
 
-            const message = data.choices[0].message
             const imageUrls: string[] = []
 
-            // 检查是否返回图片 (OpenAI/OpenRouter 格式：images 数组)
-            if (Array.isArray(message.images)) {
-                for (const img of message.images) {
-                    if (img?.image_url?.url) {
-                        imageUrls.push(img.image_url.url)
+            for (const choice of data.choices) {
+                const message = choice?.message
+                if (!message) continue
+
+                // 检查是否返回图片 (OpenAI/OpenRouter 格式：images 数组)
+                if (Array.isArray(message.images)) {
+                    for (const img of message.images) {
+                        if (img?.image_url?.url) {
+                            imageUrls.push(img.image_url.url)
+                        }
                     }
                 }
-            }
 
-            // 检查 content 中是否有 base64 图片 (直接包含多张图片)
-            if (typeof message.content === 'string' && message.content.startsWith('data:image/')) {
-                // 可能是多张 base64 图片，用正则提取
-                const base64Matches = message.content.match(/data:image\/[a-zA-Z0-9+]+;base64,[^\s"]+/g)
-                if (base64Matches) {
-                    imageUrls.push(...base64Matches)
-                } else {
-                    imageUrls.push(message.content)
+                // 检查 content 中是否有 base64 图片 (可能是多张图片)
+                if (typeof message.content === 'string') {
+                    const base64Matches = message.content.match(/data:image\/[a-zA-Z0-9+]+;base64,[^\s"\)]+/g)
+                    if (base64Matches) {
+                        imageUrls.push(...base64Matches)
+                    } else if (message.content.startsWith('data:image/')) {
+                        imageUrls.push(message.content)
+                    }
                 }
             }
 
@@ -118,7 +121,7 @@ export async function generateImage(request: GenerateRequest, customMaxRetries?:
             }
 
             // 文本回复或空回复不属于限流，直接失败
-            const textContent = message.content || ''
+            const textContent = data.choices[0]?.message?.content || ''
 
             if (typeof textContent === 'string' && textContent.trim()) {
                 throw new Error(`模型返回了文本而非图片: ${textContent}`)
@@ -144,6 +147,93 @@ export async function generateImage(request: GenerateRequest, customMaxRetries?:
     throw new Error(`在 ${maxRetries} 次尝试后仍未能生成图片。最后错误: ${lastError?.message || '未知错误'}`)
 }
 
+/**
+ * 批量生成多张图片：智能适配 Images API 原生多图与 Chat Completions 并发模式，并支持增量进度回调
+ */
+export async function generateImages(
+    request: GenerateRequest,
+    customMaxRetries?: number,
+    onProgress?: (imageUrls: string[], completedCount: number, totalCount: number) => void
+): Promise<GenerateResponse> {
+    const totalCount = Math.max(1, Math.min(4, Math.floor(request.numOutputs ?? 1)))
+    const modelId = request.model?.trim() || DEFAULT_MODEL_ID
+
+    // 单张生成直接调用基础方法
+    if (totalCount === 1) {
+        const result = await generateImage(request, customMaxRetries)
+        onProgress?.(result.imageUrls, result.imageUrls.length, 1)
+        return result
+    }
+
+    // 针对 Images API 模型 (OpenAI GPT-Image 等)
+    // 很多 Images API 原生支持通过 n 参数单次直接返回多张图片
+    if (usesImagesApi(modelId)) {
+        try {
+            console.log(`尝试通过 Images API 原生批量生成 ${totalCount} 张图片...`)
+            const batchRequest = { ...request, numOutputs: totalCount }
+            const response = await generateImage(batchRequest, customMaxRetries)
+
+            if (response.imageUrls.length >= totalCount) {
+                onProgress?.(response.imageUrls, response.imageUrls.length, totalCount)
+                return response
+            }
+
+            if (response.imageUrls.length > 0) {
+                const combinedUrls = [...response.imageUrls]
+                onProgress?.(combinedUrls, combinedUrls.length, totalCount)
+                const remainingCount = totalCount - combinedUrls.length
+                console.log(`Images API 单次返回了 ${combinedUrls.length}/${totalCount} 张，并发补充生成剩余 ${remainingCount} 张...`)
+
+                const supplementTasks = Array.from({ length: remainingCount }).map(async () => {
+                    const subRes = await generateImage({ ...request, numOutputs: 1 }, customMaxRetries)
+                    if (subRes.imageUrls.length > 0) {
+                        combinedUrls.push(...subRes.imageUrls)
+                        onProgress?.([...combinedUrls], combinedUrls.length, totalCount)
+                    }
+                    return subRes.imageUrls
+                })
+                await Promise.allSettled(supplementTasks)
+                return { imageUrls: combinedUrls }
+            }
+        } catch (imagesApiError) {
+            console.warn(`Images API 单次批量生成未能成功，自动降级为并发独立生成模式:`, imagesApiError)
+        }
+    }
+
+    // 针对 Chat Completions (如 Google Gemini 系列) 或降级并发情况：
+    // 并发发起 totalCount 个独立的生成请求
+    console.log(`采用并发模式生成 ${totalCount} 张图片...`)
+    const collectedUrls: string[] = []
+    let completedCount = 0
+    let lastError: Error | null = null
+
+    const tasks = Array.from({ length: totalCount }).map(async (_, index) => {
+        try {
+            const singleRequest = { ...request, numOutputs: 1 }
+            const res = await generateImage(singleRequest, customMaxRetries)
+            if (res.imageUrls.length > 0) {
+                collectedUrls.push(...res.imageUrls)
+                completedCount++
+                onProgress?.([...collectedUrls], completedCount, totalCount)
+            }
+            return res.imageUrls
+        } catch (err) {
+            console.error(`并发生成第 ${index + 1} 张图片出错:`, err)
+            lastError = err instanceof Error ? err : new Error(String(err))
+            throw err
+        }
+    })
+
+    await Promise.allSettled(tasks)
+
+    if (collectedUrls.length > 0) {
+        console.log(`并发生成完成，共成功生成 ${collectedUrls.length}/${totalCount} 张图片`)
+        return { imageUrls: collectedUrls }
+    }
+
+    throw lastError || new Error(`批量生成 ${totalCount} 张图片全部失败`)
+}
+
 function getApiErrorStatus(error: Error): number | null {
     const match = error.message.match(/^API error (\d{3}):/)
     if (!match) return null
@@ -163,7 +253,7 @@ function shouldRetry(error: Error, attempt: number, maxRetries: number): boolean
     return attempt < maxRetries && isRetryableError(error)
 }
 
-function shouldRetryOnRateLimit(error: Error, attempt: number, maxRetries: number): boolean {
+export function shouldRetryOnRateLimit(error: Error, attempt: number, maxRetries: number): boolean {
     return shouldRetry(error, attempt, maxRetries)
 }
 
@@ -183,6 +273,10 @@ async function createWithImagesApi(request: GenerateRequest, apiBase: string, mo
     const payload: Record<string, unknown> = {
         model: modelId,
         prompt: request.prompt
+    }
+
+    if (request.numOutputs && request.numOutputs > 1) {
+        payload.n = request.numOutputs
     }
 
     if (getModelCapability(modelId)?.provider === 'xAI') {
@@ -218,6 +312,9 @@ async function editWithImagesApi(request: GenerateRequest, apiBase: string, mode
     const capability = getModelCapability(modelId)
     if (capability?.provider === 'xAI') {
         const payload: Record<string, unknown> = { model: modelId, prompt: request.prompt }
+        if (request.numOutputs && request.numOutputs > 1) {
+            payload.n = request.numOutputs
+        }
         const images = request.images.map(url => ({ type: 'image_url', url }))
         if (images.length === 1) payload.image = images[0]
         else payload.images = images
@@ -237,6 +334,10 @@ async function editWithImagesApi(request: GenerateRequest, apiBase: string, mode
     const formData = new FormData()
     formData.append('model', modelId)
     formData.append('prompt', request.prompt)
+
+    if (request.numOutputs && request.numOutputs > 1) {
+        formData.append('n', String(request.numOutputs))
+    }
 
     const size = resolveImageSize(request.aspectRatio, request.imageSize)
     if (size) {

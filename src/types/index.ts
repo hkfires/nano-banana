@@ -10,7 +10,10 @@ export interface GenerateRequest {
     enableGoogleSearch?: boolean
     resolution?: string
     maxRetries?: number
+    numOutputs?: number
 }
+
+export type GenerateProgressCallback = (imageUrls: string[], completedCount: number, totalCount: number) => void
 
 export interface GenerateResponse {
     imageUrls: string[]

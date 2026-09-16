@@ -11,6 +11,7 @@ export class LocalStorage {
     private static readonly MODEL_CACHE = 'nano-banana-model-cache'
     private static readonly MODEL_IMAGE_SETTINGS = 'nano-banana-model-image-settings'
     private static readonly MAX_RETRIES = 'nano-banana-max-retries'
+    private static readonly BATCH_COUNT = 'nano-banana-batch-count'
 
     // 保存API密钥
     static saveApiKey(apiKey: string): void {
@@ -116,6 +117,29 @@ export class LocalStorage {
         } catch (error) {
             console.warn('无法从本地存储读取重试次数:', error)
             return DEFAULT_MAX_RETRIES
+        }
+    }
+
+    // 保存生成图片张数 (1-4)
+    static saveBatchCount(count: number): void {
+        try {
+            const val = Math.min(4, Math.max(1, Math.floor(Number(count) || 1)))
+            localStorage.setItem(this.BATCH_COUNT, String(val))
+        } catch (error) {
+            console.warn('无法保存生成张数到本地存储:', error)
+        }
+    }
+
+    // 获取生成图片张数 (默认 1)
+    static getBatchCount(): number {
+        try {
+            const val = localStorage.getItem(this.BATCH_COUNT)
+            if (!val) return 1
+            const count = parseInt(val, 10)
+            return Number.isFinite(count) && count >= 1 && count <= 4 ? count : 1
+        } catch (error) {
+            console.warn('无法从本地存储读取生成张数:', error)
+            return 1
         }
     }
 

@@ -74,10 +74,10 @@
         </header>
 
         <!-- 主内容创作空间 -->
-        <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+        <main class="max-w-7xl 2xl:max-w-[1536px] mx-auto px-4 sm:px-6 py-6">
             <div class="grid lg:grid-cols-12 gap-6 items-start">
-                <!-- ================= 左侧：一体化创作 Studio（7列） ================= -->
-                <div class="lg:col-span-7 space-y-4">
+                <!-- ================= 左侧：一体化创作 Studio（lg:6列 / xl:5列） ================= -->
+                <div class="lg:col-span-6 xl:col-span-5 space-y-4">
                     <!-- 统一创作容器 (Unified Studio Container) -->
                     <div class="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-5 shadow-xs">
                         <!-- 1. 工作流模式切换 Tabs (文生图 / 图生图) -->
@@ -248,6 +248,24 @@
                                     </button>
                                 </div>
 
+                                <!-- 单次生成张数胶囊 -->
+                                <div class="flex items-center gap-0.5 bg-slate-100 p-0.5 rounded-lg" title="单次生成图片张数">
+                                    <span class="text-[10px] text-slate-400 pl-1 select-none font-medium">张数</span>
+                                    <button
+                                        v-for="count in [1, 2, 4]"
+                                        :key="count"
+                                        @click="batchCount = count"
+                                        :class="[
+                                            'px-2 py-0.5 rounded-md text-xs font-medium transition-all',
+                                            batchCount === count
+                                                ? 'bg-white text-slate-900 shadow-xs font-semibold'
+                                                : 'text-slate-500 hover:text-slate-800'
+                                        ]"
+                                    >
+                                        {{ count }}张
+                                    </button>
+                                </div>
+
                                 <!-- 清晰度档位 (若当前模型支持) -->
                                 <div v-if="currentModelCapability?.supportsImageSize" class="relative">
                                     <select
@@ -326,7 +344,7 @@
                                 >
                                     <span v-if="!isTextToImageLoading" class="flex items-center gap-1.5">
                                         <span>✨</span>
-                                        <span>立即生成</span>
+                                        <span>{{ batchCount > 1 ? `立即生成 (${batchCount}张)` : '立即生成' }}</span>
                                         <span class="text-[10px] opacity-70 font-mono hidden sm:inline">(↵)</span>
                                     </span>
                                     <span v-else class="flex items-center gap-1.5">
@@ -350,7 +368,7 @@
                                 >
                                     <span v-if="!isLoading" class="flex items-center gap-1.5">
                                         <span>🖼️</span>
-                                        <span>开始图文重塑</span>
+                                        <span>{{ batchCount > 1 ? `开始重塑 (${batchCount}张)` : '开始图文重塑' }}</span>
                                         <span class="text-[10px] opacity-70 font-mono hidden sm:inline">(↵)</span>
                                     </span>
                                     <span v-else class="flex items-center gap-1.5">
@@ -370,8 +388,8 @@
                     </div>
                 </div>
 
-                <!-- ================= 右侧：作品画廊 Showcase（5列） ================= -->
-                <div class="lg:col-span-5 sticky lg:top-20">
+                <!-- ================= 右侧：作品画廊 Showcase（lg:6列 / xl:7列） ================= -->
+                <div class="lg:col-span-6 xl:col-span-7 sticky lg:top-20">
                     <ResultDisplay
                         :results="displayResults"
                         :loading="displayLoading"
@@ -379,7 +397,9 @@
                         :can-push="canPushDisplayResult"
                         :current-prompt="activeResultPrompt"
                         :history="generationHistory"
+                        :batch-total="batchCount"
                         @download="handleDownloadResult"
+                        @download-all="handleDownloadAllResults"
                         @push="handlePushDisplayResult"
                         @retry="handleRetry"
                         @open-api-modal="showApiModal = true"
@@ -415,7 +435,7 @@ import ImageUpload from './components/ImageUpload.vue'
 import ResultDisplay from './components/ResultDisplay.vue'
 import ApiKeyModal from './components/ApiKeyModal.vue'
 import Footer from './components/Footer.vue'
-import { fetchModels, generateImage } from './services/api'
+import { fetchModels, generateImages } from './services/api'
 import { styleTemplates } from './data/templates'
 import { LocalStorage } from './utils/storage'
 import type { GenerateRequest, ModelOption, HistoryRecord } from './types'
@@ -431,11 +451,13 @@ const savedInitKey = LocalStorage.getApiKey()
 const savedInitEndpoint = normalizeApiBase(LocalStorage.getApiEndpoint()) || DEFAULT_API_ENDPOINT
 const savedInitModel = LocalStorage.getModelId() || ''
 const savedInitMaxRetries = LocalStorage.getMaxRetries()
+const savedInitBatchCount = LocalStorage.getBatchCount()
 
 const apiKey = ref(savedInitKey)
 const apiEndpoint = ref(savedInitEndpoint)
 const selectedModel = ref(savedInitModel)
 const maxRetries = ref(savedInitMaxRetries)
+const batchCount = ref(savedInitBatchCount)
 const showApiModal = ref(false)
 
 const modelOptions = ref<ModelOption[]>([])
@@ -512,6 +534,13 @@ watch(
     maxRetries,
     (val: number) => {
         LocalStorage.saveMaxRetries(val)
+    }
+)
+
+watch(
+    batchCount,
+    (val: number) => {
+        LocalStorage.saveBatchCount(val)
     }
 )
 
@@ -832,12 +861,15 @@ const handleTextToImageGenerate = async () => {
             apikey: apiKey.value,
             endpoint: apiEndpoint.value.trim() || DEFAULT_API_ENDPOINT,
             model: selectedModel.value.trim(),
-            maxRetries: maxRetries.value
+            maxRetries: maxRetries.value,
+            numOutputs: batchCount.value
         }
 
         applyModelSettingsToRequest(request)
 
-        const response = await generateImage(request)
+        const response = await generateImages(request, maxRetries.value, (urls) => {
+            textToImageResult.value = urls
+        })
         textToImageResult.value = response.imageUrls
         latestResultSource.value = 'text'
 
@@ -882,12 +914,15 @@ const handleGenerate = async () => {
             apikey: apiKey.value,
             endpoint: apiEndpoint.value.trim() || DEFAULT_API_ENDPOINT,
             model: selectedModel.value.trim(),
-            maxRetries: maxRetries.value
+            maxRetries: maxRetries.value,
+            numOutputs: batchCount.value
         }
 
         applyModelSettingsToRequest(request)
 
-        const response = await generateImage(request)
+        const response = await generateImages(request, maxRetries.value, (urls) => {
+            result.value = urls
+        })
         result.value = response.imageUrls
         latestResultSource.value = 'image'
 
@@ -979,6 +1014,16 @@ const handleDownloadResult = async (image: string) => {
         }
     } catch {
         window.open(image, '_blank', 'noopener')
+    }
+}
+
+const handleDownloadAllResults = async (images: string[]) => {
+    if (!images || !images.length) return
+    for (let i = 0; i < images.length; i++) {
+        await handleDownloadResult(images[i])
+        if (i < images.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 350))
+        }
     }
 }
 </script>
